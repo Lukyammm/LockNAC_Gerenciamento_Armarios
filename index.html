@@ -2495,7 +2495,7 @@
                                 <div class="wizard-col-4">
                                     <div class="wizard-field">
                                         <label for="termo-nascimento" class="wizard-required">Data de nascimento</label>
-                                        <input type="date" id="termo-nascimento" class="wizard-input" required>
+                                        <input type="text" id="termo-nascimento" class="wizard-input" required placeholder="DD/MM/AAAA" inputmode="numeric" autocomplete="off" maxlength="10">
                                         <div class="wizard-error">Informe a data de nascimento.</div>
                                     </div>
                                 </div>
@@ -3075,7 +3075,11 @@
             globalLoadingText: document.getElementById('global-loading-text'),
             termoModal: document.getElementById('termo-modal'),
             termoForm: document.getElementById('termo-form'),
+            termoNascimento: document.getElementById('termo-nascimento'),
             termoSetor: document.getElementById('termo-setor'),
+            termoLeito: document.getElementById('termo-leito'),
+            termoSetorLabel: document.querySelector("label[for='termo-setor']"),
+            termoLeitoLabel: document.querySelector("label[for='termo-leito']"),
             termoModalClose: document.getElementById('termo-modal-close'),
             termoBtnVoltar: document.getElementById('termo-btn-voltar'),
             termoBtnAvancar: document.getElementById('termo-btn-avancar'),
@@ -3643,6 +3647,30 @@
             }
             garantirOpcaoSetor(texto);
             select.value = texto;
+        }
+        function ajustarObrigatoriedadeCamposPaciente(tipo) {
+            const ehAcompanhante = normalizarTexto(tipo) === 'acompanhante';
+            const configuracoes = [
+                { campo: elementos.termoSetor, label: elementos.termoSetorLabel },
+                { campo: elementos.termoLeito, label: elementos.termoLeitoLabel }
+            ];
+            configuracoes.forEach(item => {
+                if (!item.campo) {
+                    return;
+                }
+                if (ehAcompanhante) {
+                    item.campo.removeAttribute('required');
+                    item.campo.closest('.wizard-field')?.classList.remove('invalid');
+                    if (item.label) {
+                        item.label.classList.remove('wizard-required');
+                    }
+                } else {
+                    item.campo.setAttribute('required', 'required');
+                    if (item.label && !item.label.classList.contains('wizard-required')) {
+                        item.label.classList.add('wizard-required');
+                    }
+                }
+            });
         }
         function obterDescricaoUnidades(unidadesLista) {
             const lista = normalizarListaDeUnidades(unidadesLista);
@@ -4461,9 +4489,19 @@
             configurarBotaoAcao(elementos.btnNovaUnidade, () => abrirModalNovaUnidade());
             // Termo de responsabilidade
             elementos.termoBtnVoltar.addEventListener('click', () => navegarPassoTermo(-1));
+            elementos.termoBtnVoltar.addEventListener('keydown', event => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    navegarPassoTermo(-1);
+                }
+            });
             elementos.termoBtnAvancar.addEventListener('click', avancarOuAplicarTermo);
             elementos.termoBtnCancelar.addEventListener('click', fecharTermoModal);
             elementos.termoModalClose.addEventListener('click', fecharTermoModal);
+            if (elementos.termoNascimento) {
+                elementos.termoNascimento.addEventListener('input', () => normalizarCampoDataNascimento(elementos.termoNascimento));
+                elementos.termoNascimento.addEventListener('blur', () => finalizarCampoDataNascimento(elementos.termoNascimento));
+            }
             if (elementos.termoAddVolume) {
                 elementos.termoAddVolume.addEventListener('click', () => {
                     const novoVolume = adicionarVolumeTermo();
@@ -5992,6 +6030,140 @@
                 return valor;
             }
         }
+        function expandirAnoDoisDigitos(anoTexto) {
+            const numero = parseInt(anoTexto, 10);
+            if (Number.isNaN(numero) || numero < 0) {
+                return '';
+            }
+            const anoAtual = new Date().getFullYear() % 100;
+            const seculoBase = numero <= anoAtual ? 2000 : 1900;
+            return String(seculoBase + numero).padStart(4, '0');
+        }
+        function validarPartesData(dia, mes, ano) {
+            const diaNum = Number(dia);
+            const mesNum = Number(mes);
+            const anoNum = Number(ano);
+            if (!Number.isInteger(diaNum) || !Number.isInteger(mesNum) || !Number.isInteger(anoNum)) {
+                return false;
+            }
+            if (mesNum < 1 || mesNum > 12) {
+                return false;
+            }
+            if (diaNum < 1 || diaNum > 31) {
+                return false;
+            }
+            if (anoNum < 1900) {
+                return false;
+            }
+            return true;
+        }
+        function converterDataTextoParaISO(valor) {
+            if (!valor) return '';
+            const texto = valor.toString().trim();
+            if (!texto) return '';
+            if (/^\d{4}-\d{2}-\d{2}$/.test(texto)) {
+                return texto;
+            }
+            const isoCompleto = texto.match(/^(\d{4})-(\d{2})-(\d{2})/);
+            if (isoCompleto) {
+                const [, anoIso, mesIso, diaIso] = isoCompleto;
+                return `${anoIso}-${mesIso}-${diaIso}`;
+            }
+            let apenasDigitos = texto.replace(/\D/g, '');
+            if (apenasDigitos.length < 6) {
+                return '';
+            }
+            apenasDigitos = apenasDigitos.slice(0, 8);
+            const dia = apenasDigitos.slice(0, 2);
+            const mes = apenasDigitos.slice(2, 4);
+            let ano = '';
+            if (apenasDigitos.length >= 8) {
+                ano = apenasDigitos.slice(4, 8);
+            } else {
+                ano = expandirAnoDoisDigitos(apenasDigitos.slice(4, 6));
+            }
+            if (!ano || !validarPartesData(dia, mes, ano)) {
+                return '';
+            }
+            const data = new Date(`${ano}-${mes}-${dia}`);
+            if (Number.isNaN(data.getTime())) {
+                return '';
+            }
+            const diaValidado = String(data.getDate()).padStart(2, '0');
+            const mesValidado = String(data.getMonth() + 1).padStart(2, '0');
+            const anoValidado = String(data.getFullYear()).padStart(4, '0');
+            if (diaValidado !== dia || mesValidado !== mes || anoValidado !== ano) {
+                return '';
+            }
+            return `${ano}-${mes}-${dia}`;
+        }
+        function formatarDataParaCampoNascimento(valor) {
+            if (!valor) return '';
+            const texto = valor.toString().trim();
+            if (!texto) return '';
+            if (/^\d{2}\/\d{2}\/\d{4}$/.test(texto)) {
+                return texto;
+            }
+            if (/^\d{2}\/\d{2}\/\d{2}$/.test(texto)) {
+                const [diaCurto, mesCurto, anoCurto] = texto.split('/');
+                const anoCompleto = expandirAnoDoisDigitos(anoCurto);
+                if (!anoCompleto) {
+                    return '';
+                }
+                return `${diaCurto}/${mesCurto}/${anoCompleto}`;
+            }
+            if (/^\d{4}-\d{2}-\d{2}$/.test(texto)) {
+                const [ano, mes, dia] = texto.split('-');
+                return `${dia}/${mes}/${ano}`;
+            }
+            const data = new Date(texto);
+            if (Number.isNaN(data.getTime())) {
+                return '';
+            }
+            const dia = String(data.getDate()).padStart(2, '0');
+            const mes = String(data.getMonth() + 1).padStart(2, '0');
+            const ano = String(data.getFullYear()).padStart(4, '0');
+            return `${dia}/${mes}/${ano}`;
+        }
+        function aplicarMascaraDataNascimento(campo) {
+            if (!campo) return;
+            const digitos = campo.value.replace(/\D/g, '').slice(0, 8);
+            const partes = [];
+            if (digitos.length > 0) {
+                partes.push(digitos.slice(0, Math.min(2, digitos.length)));
+            }
+            if (digitos.length > 2) {
+                partes.push(digitos.slice(2, Math.min(4, digitos.length)));
+            }
+            if (digitos.length > 4) {
+                partes.push(digitos.slice(4));
+            }
+            const formatado = partes.join('/');
+            const posicaoFinal = formatado.length;
+            campo.value = formatado;
+            if (typeof campo.setSelectionRange === 'function') {
+                campo.setSelectionRange(posicaoFinal, posicaoFinal);
+            }
+        }
+        function normalizarCampoDataNascimento(campo) {
+            if (!campo) return;
+            aplicarMascaraDataNascimento(campo);
+            const iso = converterDataTextoParaISO(campo.value);
+            if (iso) {
+                campo.dataset.isoValue = iso;
+                campo.closest('.wizard-field')?.classList.remove('invalid');
+            } else {
+                delete campo.dataset.isoValue;
+            }
+        }
+        function finalizarCampoDataNascimento(campo) {
+            if (!campo) return;
+            const iso = converterDataTextoParaISO(campo.value);
+            if (iso) {
+                campo.value = formatarDataParaCampoNascimento(iso);
+                campo.dataset.isoValue = iso;
+            }
+        }
         function formatarDataHora(valor) {
             if (!valor) return '-';
             try {
@@ -6024,11 +6196,15 @@
             }
             if (!armario) return;
             const identificadores = montarIdentificadoresArmario(armario);
+            ajustarObrigatoriedadeCamposPaciente(identificadores?.tipo || armario.tipo || '');
             termoArmarioAtual = id;
             elementos.termoArmario.textContent = identificadores?.numeroArmario || armario.numero || '';
             elementos.termoForm.reset();
             elementos.termoForm.querySelectorAll('.wizard-field').forEach(field => field.classList.remove('invalid'));
             limparAssinaturaTermo(true);
+            if (elementos.termoNascimento) {
+                delete elementos.termoNascimento.dataset.isoValue;
+            }
 
             let termoDados = null;
             const preCadastro = termoPreCadastro && identificadores && normalizarIdentificador(termoPreCadastro.id) === identificadores.idPlanilha
@@ -6047,7 +6223,21 @@
 
             document.getElementById('termo-paciente').value = termoDados?.paciente || preCadastro?.nomePaciente || armario.nomePaciente || '';
             document.getElementById('termo-prontuario').value = termoDados?.prontuario || '';
-            document.getElementById('termo-nascimento').value = termoDados?.nascimento ? termoDados.nascimento.slice(0, 10) : '';
+            if (elementos.termoNascimento) {
+                const origemNascimento = termoDados?.nascimento || preCadastro?.nascimento || '';
+                const valorNascimento = formatarDataParaCampoNascimento(origemNascimento);
+                elementos.termoNascimento.value = valorNascimento;
+                if (valorNascimento) {
+                    const isoNascimento = converterDataTextoParaISO(valorNascimento);
+                    if (isoNascimento) {
+                        elementos.termoNascimento.dataset.isoValue = isoNascimento;
+                    } else {
+                        delete elementos.termoNascimento.dataset.isoValue;
+                    }
+                } else {
+                    delete elementos.termoNascimento.dataset.isoValue;
+                }
+            }
             definirSetorTermo(termoDados?.setor || preCadastro?.setor || '');
             document.getElementById('termo-leito').value = termoDados?.leito || preCadastro?.leito || armario.leito || '';
             document.getElementById('termo-resp-nome').value = termoDados?.acompanhante || preCadastro?.nomeVisitante || armario.nomeVisitante || '';
@@ -6122,6 +6312,16 @@
                     if (!input.value.trim()) {
                         marcarCampoTermoInvalido(input);
                         valido = false;
+                    }
+                    if (input.id === 'termo-nascimento') {
+                        const iso = converterDataTextoParaISO(input.value);
+                        if (!iso) {
+                            delete input.dataset.isoValue;
+                            marcarCampoTermoInvalido(input);
+                            valido = false;
+                        } else {
+                            input.dataset.isoValue = iso;
+                        }
                     }
                 }
             });
@@ -6348,12 +6548,14 @@
             const assinaturaBase64 = canvas ? canvas.toDataURL('image/png').replace('data:image/png;base64,', '') : '';
             const volumes = obterVolumesTermo();
             const descricaoVolumes = volumes.map(v => `${v.quantidade}x ${v.descricao}`).join('; ');
+            const nascimentoCampo = elementos.termoNascimento;
+            const nascimentoIso = nascimentoCampo ? converterDataTextoParaISO(nascimentoCampo.value) : '';
             const dadosTermo = {
                 armarioId: identificadores?.idPlanilha || '',
                 numeroArmario: identificadores?.numeroArmario || document.getElementById('termo-armario').textContent,
                 paciente: document.getElementById('termo-paciente').value.trim(),
                 prontuario: document.getElementById('termo-prontuario').value.trim(),
-                nascimento: document.getElementById('termo-nascimento').value,
+                nascimento: nascimentoIso,
                 setor: (elementos.termoSetor?.value || '').toString().trim(),
                 leito: document.getElementById('termo-leito').value.trim(),
                 consciente: document.querySelector('input[name="termo-consciente"]:checked')?.value || '',
@@ -6393,6 +6595,10 @@
             mostrarPassoTermo(0);
             elementos.termoForm.reset();
             elementos.termoForm.querySelectorAll('.wizard-field').forEach(field => field.classList.remove('invalid'));
+            if (elementos.termoNascimento) {
+                delete elementos.termoNascimento.dataset.isoValue;
+            }
+            ajustarObrigatoriedadeCamposPaciente(null);
             prepararVolumesTermo();
             limparAssinaturaTermo(true);
         }
