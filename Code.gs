@@ -693,6 +693,171 @@ function formatarHorarioPlanilha(valor) {
   return valor;
 }
 
+function obterDataSomenteDia(valor) {
+  if (!valor) {
+    return null;
+  }
+  if (Object.prototype.toString.call(valor) === '[object Date]' && !isNaN(valor.getTime())) {
+    return new Date(valor.getFullYear(), valor.getMonth(), valor.getDate());
+  }
+  if (typeof valor === 'number') {
+    var dataNumero = new Date(valor);
+    if (!isNaN(dataNumero.getTime())) {
+      return new Date(dataNumero.getFullYear(), dataNumero.getMonth(), dataNumero.getDate());
+    }
+  }
+  if (typeof valor === 'string') {
+    var texto = valor.trim();
+    if (!texto) {
+      return null;
+    }
+    var matchDMY = texto.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+    if (matchDMY) {
+      var dia = parseInt(matchDMY[1], 10);
+      var mes = parseInt(matchDMY[2], 10) - 1;
+      var ano = parseInt(matchDMY[3], 10);
+      if (!isNaN(dia) && !isNaN(mes) && !isNaN(ano)) {
+        return new Date(ano, mes, dia);
+      }
+    }
+    var matchISO = texto.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (matchISO) {
+      var anoIso = parseInt(matchISO[1], 10);
+      var mesIso = parseInt(matchISO[2], 10) - 1;
+      var diaIso = parseInt(matchISO[3], 10);
+      if (!isNaN(anoIso) && !isNaN(mesIso) && !isNaN(diaIso)) {
+        return new Date(anoIso, mesIso, diaIso);
+      }
+    }
+    var textoISO = texto.replace(' ', 'T');
+    var dataISO = new Date(textoISO);
+    if (!isNaN(dataISO.getTime())) {
+      return new Date(dataISO.getFullYear(), dataISO.getMonth(), dataISO.getDate());
+    }
+  }
+  return null;
+}
+
+function extrairHorarioComponentes(valor) {
+  if (!valor) {
+    return null;
+  }
+  if (Object.prototype.toString.call(valor) === '[object Date]' && !isNaN(valor.getTime())) {
+    return {
+      horas: valor.getHours(),
+      minutos: valor.getMinutes(),
+      dataBase: valor.getFullYear() > 1900 ? new Date(valor.getFullYear(), valor.getMonth(), valor.getDate()) : null
+    };
+  }
+  if (typeof valor === 'number') {
+    var dataNumero = new Date(valor);
+    if (!isNaN(dataNumero.getTime())) {
+      return {
+        horas: dataNumero.getHours(),
+        minutos: dataNumero.getMinutes(),
+        dataBase: dataNumero.getFullYear() > 1900 ? new Date(dataNumero.getFullYear(), dataNumero.getMonth(), dataNumero.getDate()) : null
+      };
+    }
+  }
+  if (typeof valor === 'string') {
+    var texto = valor.trim();
+    if (!texto) {
+      return null;
+    }
+    var matchSimples = texto.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+    if (matchSimples) {
+      var horasSimples = parseInt(matchSimples[1], 10);
+      var minutosSimples = parseInt(matchSimples[2], 10);
+      if (!isNaN(horasSimples) && !isNaN(minutosSimples) && horasSimples >= 0 && horasSimples <= 23 && minutosSimples >= 0 && minutosSimples <= 59) {
+        return { horas: horasSimples, minutos: minutosSimples, dataBase: null };
+      }
+    }
+    var matchDMYHora = texto.match(/^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2})/);
+    if (matchDMYHora) {
+      var diaData = parseInt(matchDMYHora[1], 10);
+      var mesData = parseInt(matchDMYHora[2], 10) - 1;
+      var anoData = parseInt(matchDMYHora[3], 10);
+      var horaData = parseInt(matchDMYHora[4], 10);
+      var minutoData = parseInt(matchDMYHora[5], 10);
+      if ([diaData, mesData, anoData, horaData, minutoData].every(function(v) { return !isNaN(v); })) {
+        return {
+          horas: horaData,
+          minutos: minutoData,
+          dataBase: new Date(anoData, mesData, diaData)
+        };
+      }
+    }
+    var matchISOHora = texto.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
+    if (matchISOHora) {
+      var anoHora = parseInt(matchISOHora[1], 10);
+      var mesHora = parseInt(matchISOHora[2], 10) - 1;
+      var diaHora = parseInt(matchISOHora[3], 10);
+      var horaIso = parseInt(matchISOHora[4], 10);
+      var minutoIso = parseInt(matchISOHora[5], 10);
+      if ([anoHora, mesHora, diaHora, horaIso, minutoIso].every(function(v) { return !isNaN(v); })) {
+        return {
+          horas: horaIso,
+          minutos: minutoIso,
+          dataBase: new Date(anoHora, mesHora, diaHora)
+        };
+      }
+    }
+    var textoISO = texto.replace(' ', 'T');
+    var dataISO = new Date(textoISO);
+    if (!isNaN(dataISO.getTime())) {
+      return {
+        horas: dataISO.getHours(),
+        minutos: dataISO.getMinutes(),
+        dataBase: dataISO.getFullYear() > 1900 ? new Date(dataISO.getFullYear(), dataISO.getMonth(), dataISO.getDate()) : null
+      };
+    }
+  }
+  return null;
+}
+
+function montarDataHoraComDefaults(dataValor, horaValor) {
+  var componentes = extrairHorarioComponentes(horaValor);
+  if (!componentes) {
+    return null;
+  }
+  var dataBase = componentes.dataBase || obterDataSomenteDia(dataValor) || obterDataSomenteDia(new Date());
+  if (!dataBase) {
+    return null;
+  }
+  return new Date(
+    dataBase.getFullYear(),
+    dataBase.getMonth(),
+    dataBase.getDate(),
+    componentes.horas,
+    componentes.minutos,
+    0,
+    0
+  );
+}
+
+function calcularStatusAutomaticoVisitante(statusAtual, dataRegistroValor, horaPrevistaValor, agoraReferencia) {
+  var statusNormalizado = normalizarTextoBasico(statusAtual);
+  if (statusNormalizado === 'em uso') {
+    statusNormalizado = 'em-uso';
+  }
+  if (['em-uso', 'proximo', 'vencido'].indexOf(statusNormalizado) === -1) {
+    return statusAtual;
+  }
+  var dataHoraPrevista = montarDataHoraComDefaults(dataRegistroValor, horaPrevistaValor);
+  if (!dataHoraPrevista) {
+    return statusNormalizado || statusAtual;
+  }
+  var agora = (agoraReferencia instanceof Date && !isNaN(agoraReferencia.getTime())) ? agoraReferencia : new Date();
+  var diferencaMinutos = (dataHoraPrevista.getTime() - agora.getTime()) / (1000 * 60);
+  if (diferencaMinutos < 0) {
+    return 'vencido';
+  }
+  if (diferencaMinutos <= 10) {
+    return 'proximo';
+  }
+  return 'em-uso';
+}
+
 function determinarResponsavelRegistro(valorPreferencial) {
   if (valorPreferencial !== undefined && valorPreferencial !== null) {
     var texto = valorPreferencial.toString().trim();
@@ -1040,10 +1205,14 @@ function getArmariosFromSheet(sheetName, tipo, termosMap) {
     whatsappIndex = isVisitante ? 12 : 9;
   }
 
-  dados.forEach(function(row) {
+  var houveAtualizacaoStatus = false;
+  var agoraReferencia = new Date();
+
+  for (var i = 0; i < dados.length; i++) {
+    var row = dados[i];
     var idPlanilha = row[idIndex];
     if (!idPlanilha && idPlanilha !== 0) {
-      return;
+      continue;
     }
 
     var statusValor = row[statusIndex];
@@ -1066,6 +1235,17 @@ function getArmariosFromSheet(sheetName, tipo, termosMap) {
       default:
         status = statusNormalizado || 'livre';
         break;
+    }
+
+    if (isVisitante && statusIndex > -1) {
+      var dataRegistroBruta = dataRegistroIndex > -1 ? row[dataRegistroIndex] : null;
+      var horaPrevistaBruta = horaPrevistaIndex > -1 ? row[horaPrevistaIndex] : null;
+      var novoStatus = calcularStatusAutomaticoVisitante(status, dataRegistroBruta, horaPrevistaBruta, agoraReferencia);
+      if (novoStatus && novoStatus !== status) {
+        status = novoStatus;
+        row[statusIndex] = novoStatus;
+        houveAtualizacaoStatus = true;
+      }
     }
 
     var numeroBruto = row[numeroIndex] || '';
@@ -1162,7 +1342,15 @@ function getArmariosFromSheet(sheetName, tipo, termosMap) {
     }
 
     armarios.push(armario);
-  });
+  }
+
+  if (houveAtualizacaoStatus && statusIndex > -1) {
+    var statusAtualizados = dados.map(function(linha) {
+      return [linha[statusIndex] || ''];
+    });
+    sheet.getRange(2, statusIndex + 1, totalLinhas, 1).setValues(statusAtualizados);
+    limparCacheArmarios();
+  }
 
   return armarios;
 }
@@ -3030,9 +3218,9 @@ function gerarESalvarTermoPDF(dadosTermo) {
 function criarHTMLTermo(dadosTermo) {
   var hospitalNome = 'Hospital Universitário do Ceará';
   var orientacoesPredefinidas = [
-    'Seus pertences estão sob sua guarda e responsabilidade.',
-    'Em piora clínica, os pertences serão recolhidos e protocolados no NAC.',
-    'Após 15 dias da alta/transferência, itens não retirados poderão ser descartados conforme normas.'
+    'Meus pertences estão sob minha guarda e responsabilidade;',
+    'Em caso de piora clínica, meus pertences serão recolhidos e protocolados no NAC;',
+    'Após 15 dias da alta ou transferência, os itens não retirados poderão ser descartados conforme as normas vigentes.'
   ];
   var orientacoes = [];
   if (Array.isArray(dadosTermo.orientacoes) && dadosTermo.orientacoes.length) {
@@ -3468,28 +3656,78 @@ function finalizarMovimentacoesArmario(armarioId, numeroArmario, tipo) {
 function registrarLog(acao, detalhes) {
   try {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
-    var sheet = ss.getSheetByName('LOGS');
-    
-    if (!sheet) {
+    if (!ss) {
       return;
     }
-    
+
+    var sheet = ss.getSheetByName('LOGS');
+    if (!sheet) {
+      try {
+        sheet = ss.insertSheet('LOGS');
+      } catch (erroCriacao) {
+        console.error('Não foi possível criar aba de LOGS:', erroCriacao);
+        return;
+      }
+    }
+
+    if (sheet.getLastColumn() < 5) {
+      sheet.insertColumns(sheet.getLastColumn() + 1, 5 - sheet.getLastColumn());
+    }
+
+    var cabecalhos = sheet.getRange(1, 1, 1, 5).getValues()[0];
+    if (!cabecalhos[0]) {
+      sheet.getRange(1, 1, 1, 5).setValues([[
+        'Data/Hora',
+        'Usuário',
+        'Ação',
+        'Detalhes',
+        'IP'
+      ]]);
+    }
+
     var lastRow = sheet.getLastRow();
-    
+    if (lastRow < 1) {
+      lastRow = 1;
+    }
+
     var dataLog = obterDataHoraAtualFormatada().dataHoraIso;
+    var usuarioLog = '';
+    try {
+      var usuario = Session.getEffectiveUser();
+      if (usuario && typeof usuario.getEmail === 'function') {
+        usuarioLog = usuario.getEmail();
+      }
+    } catch (erroUsuario) {
+      usuarioLog = '';
+    }
+
+    if (!usuarioLog) {
+      try {
+        var usuarioAtivo = Session.getActiveUser();
+        if (usuarioAtivo && typeof usuarioAtivo.getEmail === 'function') {
+          usuarioLog = usuarioAtivo.getEmail();
+        }
+      } catch (erroAtivo) {
+        usuarioLog = '';
+      }
+    }
+
+    if (!usuarioLog) {
+      usuarioLog = 'desconhecido';
+    }
 
     var novaLinha = [
       dataLog,
-      Session.getEffectiveUser().getEmail(),
-      acao,
-      detalhes,
-      '' // IP (não disponível no Apps Script)
+      usuarioLog,
+      acao || '',
+      detalhes || '',
+      ''
     ];
-    
+
     sheet.getRange(lastRow + 1, 1, 1, 5).setValues([novaLinha]);
-    
+
   } catch (error) {
-    // Não faz nada em caso de erro nos logs
+    console.error('Falha ao registrar log:', error);
   }
 }
 
