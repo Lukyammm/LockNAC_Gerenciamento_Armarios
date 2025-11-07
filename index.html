@@ -6085,7 +6085,7 @@
             if (!ano || !validarPartesData(dia, mes, ano)) {
                 return '';
             }
-            const data = new Date(`${ano}-${mes}-${dia}`);
+            const data = new Date(Number(ano), Number(mes) - 1, Number(dia));
             if (Number.isNaN(data.getTime())) {
                 return '';
             }
