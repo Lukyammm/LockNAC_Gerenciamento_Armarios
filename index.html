@@ -225,9 +225,11 @@
             gap: 4px;
         }
         .selector-group label {
-            font-size: 0.8rem;
+            font-size: 0.75rem;
             font-weight: 600;
-            color: var(--dark-color);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--muted-color);
         }
         .selector-control {
             position: relative;
@@ -269,9 +271,15 @@
             border: none;
             cursor: pointer;
             color: var(--dark-color);
+            border-radius: 10px;
+            transition: background-color 0.2s ease;
         }
         .selector-trigger:focus {
             outline: none;
+        }
+        .selector-trigger:focus-visible,
+        .selector-trigger:hover {
+            background: color-mix(in srgb, var(--primary-color) 10%, white 90%);
         }
         .selector-trigger-text {
             display: flex;
@@ -280,7 +288,7 @@
             gap: 2px;
         }
         .selector-trigger-label {
-            font-size: 0.95rem;
+            font-size: 1rem;
             font-weight: 700;
             color: var(--dark-color);
         }
@@ -306,23 +314,43 @@
         .selector-dropdown {
             position: absolute;
             top: calc(100% + 12px);
-            left: 0;
-            width: 100%;
+            left: 50%;
+            transform: translate(-50%, -8px);
+            min-width: min(320px, calc(100% + 48px));
+            width: max(260px, 100%);
+            max-width: 360px;
             background: var(--surface-color);
             border-radius: 16px;
             border: 1px solid color-mix(in srgb, var(--primary-color) 12%, var(--border-color) 88%);
-            box-shadow: 0 24px 55px rgba(15, 23, 42, 0.18);
-            padding: 12px;
+            box-shadow: 0 22px 40px rgba(15, 23, 42, 0.22);
+            padding: 18px 16px;
             opacity: 0;
             pointer-events: none;
-            transform: translateY(-8px);
             transition: opacity 0.2s ease, transform 0.2s ease;
             z-index: 50;
+        }
+        .selector-dropdown::before,
+        .selector-dropdown::after {
+            content: "";
+            position: absolute;
+            top: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-left: 10px solid transparent;
+            border-right: 10px solid transparent;
+            pointer-events: none;
+        }
+        .selector-dropdown::before {
+            border-bottom: 10px solid color-mix(in srgb, var(--primary-color) 12%, var(--border-color) 88%);
+        }
+        .selector-dropdown::after {
+            top: -9px;
+            border-bottom: 10px solid var(--surface-color);
         }
         .selector-control.open .selector-dropdown {
             opacity: 1;
             pointer-events: auto;
-            transform: translateY(0);
+            transform: translate(-50%, 0);
         }
         .selector-options {
             list-style: none;
@@ -330,7 +358,7 @@
             padding: 0;
             display: flex;
             flex-direction: column;
-            gap: 6px;
+            gap: 8px;
             max-height: 260px;
             overflow-y: auto;
         }
@@ -345,19 +373,21 @@
             gap: 14px;
             background: transparent;
             border: none;
-            padding: 10px 12px;
+            padding: 12px 14px;
             border-radius: 12px;
             cursor: pointer;
             color: var(--dark-color);
-            transition: background-color 0.2s ease, transform 0.2s ease;
+            transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
         }
         .selector-option-button:focus {
             outline: none;
             box-shadow: 0 0 0 3px var(--focus-ring);
         }
-        .selector-option-button:hover:not(.is-disabled) {
-            background: color-mix(in srgb, var(--primary-color) 14%, white 86%);
+        .selector-option-button:hover:not(.is-disabled),
+        .selector-option-button:focus-visible:not(.is-disabled) {
+            background: color-mix(in srgb, var(--primary-color) 18%, white 82%);
             transform: translateX(2px);
+            box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary-color) 30%, white 70%);
         }
         .selector-option-content {
             display: flex;
@@ -388,12 +418,12 @@
             align-items: flex-start;
         }
         .selector-option-label {
-            font-weight: 600;
+            font-weight: 700;
             font-size: 0.95rem;
         }
         .selector-option-description {
-            font-size: 0.75rem;
-            color: var(--muted-color);
+            font-size: 0.78rem;
+            color: color-mix(in srgb, var(--muted-color) 85%, white 15%);
             max-width: 260px;
         }
         .selector-option-check {
@@ -403,8 +433,8 @@
             transition: opacity 0.15s ease;
         }
         .selector-option-button.is-selected {
-            background: color-mix(in srgb, var(--primary-color) 18%, white 82%);
-            box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary-color) 30%, white 70%);
+            background: color-mix(in srgb, var(--primary-color) 24%, white 76%);
+            box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--primary-color) 40%, white 60%);
         }
         .selector-option-button.is-selected .selector-option-check {
             opacity: 1;
@@ -2021,6 +2051,20 @@
             .selector-control {
                 width: 100%;
                 min-width: 0;
+            }
+            .selector-control .selector-dropdown {
+                left: 0;
+                width: 100%;
+                min-width: 0;
+                transform: translateY(-8px);
+            }
+            .selector-control.open .selector-dropdown {
+                transform: translateY(0);
+            }
+            .selector-control .selector-dropdown::before,
+            .selector-control .selector-dropdown::after {
+                left: 36px;
+                transform: none;
             }
             .notification-bell {
                 align-self: flex-end;
