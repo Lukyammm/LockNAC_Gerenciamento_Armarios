@@ -37,6 +37,10 @@
             --em-uso-card-bg: color-mix(in srgb, var(--primary-color) 88%, black 12%);
             --em-uso-badge-bg: color-mix(in srgb, var(--primary-color) 18%, white 82%);
             --em-uso-badge-text: color-mix(in srgb, var(--primary-color) 92%, black 8%);
+            --extended-badge-bg: color-mix(in srgb, var(--primary-color) 14%, white 86%);
+            --extended-badge-text: color-mix(in srgb, var(--primary-color) 80%, black 20%);
+            --extended-row-bg: color-mix(in srgb, var(--primary-color) 10%, white 90%);
+            --extended-border-color: color-mix(in srgb, var(--primary-color) 45%, transparent);
         }
         * {
             margin: 0;
@@ -978,6 +982,43 @@
             box-shadow: 0 18px 36px var(--shadow-color);
             transform: translateY(-4px);
         }
+        .armario-card.visita-estendida {
+            border-left-color: var(--extended-border-color);
+            box-shadow: 0 14px 32px color-mix(in srgb, var(--primary-color) 22%, transparent);
+        }
+        .armario-card.em-uso.visita-estendida {
+            box-shadow: 0 18px 40px color-mix(in srgb, var(--primary-color) 36%, transparent);
+        }
+        .armario-header-right {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 6px;
+        }
+        .armario-highlight {
+            display: flex;
+            justify-content: flex-end;
+        }
+        .visita-estendida-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            background-color: var(--extended-badge-bg);
+            color: var(--extended-badge-text);
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+        }
+        .visita-estendida-tag i {
+            font-size: 0.7rem;
+        }
+        .armario-card.em-uso .visita-estendida-tag {
+            background-color: color-mix(in srgb, var(--surface-color) 22%, transparent);
+            color: var(--light-color);
+        }
         .armario-header {
             display: flex;
             justify-content: space-between;
@@ -1085,6 +1126,15 @@
         }
         tr:hover {
             background-color: color-mix(in srgb, var(--light-color) 65%, white 35%);
+        }
+        #tabela-visitantes tbody tr.visita-estendida {
+            background-color: var(--extended-row-bg);
+        }
+        #tabela-visitantes tbody tr.visita-estendida:hover {
+            background-color: color-mix(in srgb, var(--extended-row-bg) 85%, white 15%);
+        }
+        #tabela-visitantes tbody tr.visita-estendida td {
+            border-bottom: 1px solid var(--extended-border-color);
         }
         .btn-small {
             padding: 5px 10px;
@@ -1502,6 +1552,26 @@
             font-size: 0.8rem;
             color: var(--muted-color);
             margin-top: 4px;
+        }
+        #visita-estendida-group {
+            display: none;
+        }
+        .visita-estendida-control {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+        .visita-estendida-control input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            accent-color: var(--primary-color);
+            margin-top: 3px;
+        }
+        .visita-estendida-text label {
+            cursor: pointer;
+            font-weight: 600;
+            margin-bottom: 4px;
+            color: var(--text-color);
         }
         .form-control {
             width: 100%;
@@ -2387,9 +2457,18 @@
                         <input type="number" id="volumes" class="form-control" min="1" required>
                     </div>
                     <div class="form-group" id="hora-prevista-group">
-                        <label for="hora-prevista">Hora Prevista de Saída</label>
+                        <label for="hora-prevista">Hora prevista de saída</label>
                         <input type="time" id="hora-prevista" class="form-control" required>
-                        <div class="field-hint">Horário preenchido automaticamente para 1 hora após o cadastro.</div>
+                        <div class="field-hint">Sugerimos 1 hora após o cadastro. Ajuste manualmente se necessário.</div>
+                    </div>
+                    <div class="form-group" id="visita-estendida-group">
+                        <div class="visita-estendida-control">
+                            <input type="checkbox" id="visita-estendida">
+                            <div class="visita-estendida-text">
+                                <label for="visita-estendida">Visita estendida</label>
+                                <div class="field-hint">Mantém o armário em uso até a liberação manual.</div>
+                            </div>
+                        </div>
                     </div>
                     <div class="form-actions">
                         <button type="button" class="btn btn-secondary" id="btn-cancelar">Cancelar</button>
@@ -3052,6 +3131,8 @@
             nomeVisitanteLabel: document.querySelector("label[for='nome-visitante']"),
             horaPrevistaInput: document.getElementById('hora-prevista'),
             horaPrevistaGroup: document.getElementById('hora-prevista-group'),
+            visitaEstendidaGroup: document.getElementById('visita-estendida-group'),
+            visitaEstendidaInput: document.getElementById('visita-estendida'),
             filterBtns: document.querySelectorAll('.filter-btn'),
             cardsCount: {
                 livres: document.getElementById('livres-count'),
@@ -4078,7 +4159,8 @@
                         ? armario.idPlanilha.toString().trim()
                         : '',
                     numero: normalizarIdentificador(armario.numero),
-                    unidade: armario.unidade ? armario.unidade.trim() : ''
+                    unidade: armario.unidade ? armario.unidade.trim() : '',
+                    visitaEstendida: Boolean(armario.visitaEstendida)
                 }));
                 estado.armarios = filtrarListaPorPermissao(armariosProcessados, item => item.unidade);
                 estado.armariosCarregados = true;
@@ -4351,6 +4433,37 @@
             const minutos = String(agora.getMinutes()).padStart(2, '0');
             return `${horas}:${minutos}`;
         }
+        function atualizarInterfaceVisitaEstendida({ manterHorarioManual = false } = {}) {
+            const formulario = elementos.armarioForm;
+            const checkbox = elementos.visitaEstendidaInput;
+            const inputHora = elementos.horaPrevistaInput;
+            if (!formulario || !checkbox || !inputHora) {
+                return;
+            }
+
+            const visitaEstendida = Boolean(checkbox.checked);
+            formulario.dataset.visitaEstendida = visitaEstendida ? 'true' : 'false';
+
+            if (visitaEstendida) {
+                if (inputHora.value) {
+                    formulario.dataset.horaPrevistaAnterior = inputHora.value;
+                }
+                inputHora.value = '';
+                inputHora.disabled = true;
+                inputHora.required = false;
+            } else {
+                inputHora.disabled = false;
+                inputHora.required = true;
+                const valorAnterior = formulario.dataset.horaPrevistaAnterior || '';
+                if (!manterHorarioManual) {
+                    if (valorAnterior) {
+                        inputHora.value = valorAnterior;
+                    } else if (!inputHora.value) {
+                        inputHora.value = calcularHoraPrevistaSaida();
+                    }
+                }
+            }
+        }
         // Configuração de eventos
         function inicializarEventos() {
             if (eventosInicializados) {
@@ -4374,6 +4487,16 @@
                     atualizarResumoDashboardLocal();
                     atualizarInterface();
                     carregarDadosTabelas();
+                });
+            }
+            if (elementos.visitaEstendidaInput) {
+                elementos.visitaEstendidaInput.addEventListener('change', () => atualizarInterfaceVisitaEstendida());
+            }
+            if (elementos.horaPrevistaInput) {
+                elementos.horaPrevistaInput.addEventListener('input', () => {
+                    if (elementos.armarioForm) {
+                        elementos.armarioForm.dataset.horaPrevistaAnterior = elementos.horaPrevistaInput.value;
+                    }
                 });
             }
             // Notificações
@@ -4692,6 +4815,9 @@
                 const card = document.createElement('div');
                 card.className = `armario-card ${armario.status}`;
                 card.dataset.id = armario.id;
+                if (armario.visitaEstendida) {
+                    card.classList.add('visita-estendida');
+                }
                 let detailsHTML = '';
                 if (armario.status === 'livre') {
                     detailsHTML += '<p>Disponível para uso</p>';
@@ -4708,18 +4834,29 @@
                         <p><strong>Volumes:</strong> ${armario.volumes}</p>
                         ${armario.whatsapp ? `<p><strong>WhatsApp:</strong> ${armario.whatsapp}</p>` : ''}
                         <p><strong>Início:</strong> ${armario.horaInicio}</p>
-                        ${armario.horaPrevista ? `<p><strong>Previsão de saída:</strong> ${armario.horaPrevista}</p>` : ''}
+                        ${armario.visitaEstendida
+                            ? '<p><strong>Visita:</strong> Estendida</p>'
+                            : (armario.horaPrevista ? `<p><strong>Previsão de saída:</strong> ${armario.horaPrevista}</p>` : '')}
                         ${termoHtml}
                         ${dataRegistroHtml}
                     `;
                 }
+                const statusHtml = `
+                    <div class="armario-status status-${armario.status}">
+                        ${armario.status === 'livre' ? 'Livre' :
+                          armario.status === 'em-uso' ? 'Em uso' :
+                          armario.status === 'proximo' ? 'Próximo' : 'Vencido'}
+                    </div>
+                `;
+                const destaqueVisita = armario.visitaEstendida
+                    ? `<div class="armario-highlight"><span class="visita-estendida-tag"><i class="fas fa-infinity" aria-hidden="true"></i> Visita estendida</span></div>`
+                    : '';
                 card.innerHTML = `
                     <div class="armario-header">
                         <div class="armario-number">${armario.numero}</div>
-                        <div class="armario-status status-${armario.status}">
-                            ${armario.status === 'livre' ? 'Livre' :
-                              armario.status === 'em-uso' ? 'Em uso' :
-                              armario.status === 'proximo' ? 'Próximo' : 'Vencido'}
+                        <div class="armario-header-right">
+                            ${destaqueVisita}
+                            ${statusHtml}
                         </div>
                     </div>
                     <div class="armario-details">
@@ -4814,7 +4951,8 @@
                     volumes: '',
                     whatsapp: '',
                     horaInicio: '',
-                    horaPrevista: ''
+                    horaPrevista: '',
+                    visitaEstendida: false
                 });
                 precisaAtualizar = true;
             }
@@ -4927,6 +5065,12 @@
             }
             armariosVisitantes.forEach(armario => {
                 const tr = document.createElement('tr');
+                if (armario.visitaEstendida) {
+                    tr.classList.add('visita-estendida');
+                }
+                const horaPrevistaColuna = armario.visitaEstendida
+                    ? '<span class="visita-estendida-tag"><i class="fas fa-infinity" aria-hidden="true"></i> Visita estendida</span>'
+                    : (armario.horaPrevista || '-');
                 tr.innerHTML = `
                     <td>${armario.numero}</td>
                     <td>${armario.unidade || '-'}</td>
@@ -4936,7 +5080,7 @@
                     <td>${armario.leito || '-'}</td>
                     <td>${armario.volumes || '-'}</td>
                     <td>${armario.horaInicio || '-'}</td>
-                    <td>${armario.horaPrevista || '-'}</td>
+                    <td>${horaPrevistaColuna}</td>
                     <td>${armario.whatsapp || '-'}</td>
                     <td>
                         ${armario.status !== 'livre'
@@ -5525,15 +5669,38 @@
                 document.getElementById('nome-visitante').placeholder =
                     armario.tipo === 'visitante' ? 'Nome do visitante' : 'Nome do acompanhante';
                 const exigeHoraPrevista = armario.tipo === 'visitante';
-                elementos.horaPrevistaGroup.style.display = exigeHoraPrevista ? 'block' : 'none';
-                elementos.horaPrevistaInput.required = exigeHoraPrevista;
-                elementos.horaPrevistaInput.disabled = !exigeHoraPrevista;
-                if (exigeHoraPrevista) {
-                    elementos.horaPrevistaInput.value = calcularHoraPrevistaSaida();
-                    elementos.horaPrevistaInput.readOnly = true;
-                } else {
-                    elementos.horaPrevistaInput.value = '';
-                    elementos.horaPrevistaInput.readOnly = false;
+                if (elementos.horaPrevistaGroup) {
+                    elementos.horaPrevistaGroup.style.display = exigeHoraPrevista ? 'block' : 'none';
+                }
+                if (elementos.visitaEstendidaGroup) {
+                    elementos.visitaEstendidaGroup.style.display = exigeHoraPrevista ? 'block' : 'none';
+                }
+                const horaPrevistaInput = elementos.horaPrevistaInput;
+                const visitaEstendidaInput = elementos.visitaEstendidaInput;
+                if (horaPrevistaInput) {
+                    horaPrevistaInput.required = exigeHoraPrevista;
+                    horaPrevistaInput.disabled = !exigeHoraPrevista;
+                    horaPrevistaInput.readOnly = false;
+                    if (exigeHoraPrevista) {
+                        const horarioSugerido = calcularHoraPrevistaSaida();
+                        horaPrevistaInput.value = horarioSugerido;
+                        if (elementos.armarioForm) {
+                            delete elementos.armarioForm.dataset.horaPrevistaAnterior;
+                        }
+                        if (visitaEstendidaInput) {
+                            visitaEstendidaInput.checked = false;
+                        }
+                        atualizarInterfaceVisitaEstendida({ manterHorarioManual: true });
+                    } else {
+                        horaPrevistaInput.value = '';
+                        if (elementos.armarioForm) {
+                            delete elementos.armarioForm.dataset.visitaEstendida;
+                            delete elementos.armarioForm.dataset.horaPrevistaAnterior;
+                        }
+                        if (visitaEstendidaInput) {
+                            visitaEstendidaInput.checked = false;
+                        }
+                    }
                 }
                 const whatsappInput = document.getElementById('whatsapp-contato');
                 if (whatsappInput) {
@@ -5579,7 +5746,9 @@
                         <p><strong>Volumes:</strong> ${armario.volumes}</p>
                         ${armario.whatsapp ? `<p><strong>WhatsApp:</strong> ${armario.whatsapp}</p>` : ''}
                         <p><strong>Início:</strong> ${armario.horaInicio}</p>
-                        ${armario.horaPrevista ? `<p><strong>Previsão de saída:</strong> ${armario.horaPrevista}</p>` : ''}
+                        ${armario.visitaEstendida
+                            ? '<p><strong>Visita:</strong> Estendida</p>'
+                            : (armario.horaPrevista ? `<p><strong>Previsão de saída:</strong> ${armario.horaPrevista}</p>` : '')}
                         ${dataRegistroHtml}
                         ${termoHtml}
                         ${armario.tipo === 'acompanhante' && termoPendente ? `<div style="margin-top:16px;"><button id="btn-aplicar-termo" class="swal2-confirm swal2-styled" style="background-color:#2c6e8f;">Aplicar termo agora</button></div>` : ''}
@@ -5821,6 +5990,9 @@
                 if (Number.isNaN(volumesInformados) || volumesInformados < 0) {
                     volumesInformados = 0;
                 }
+                const visitaEstendida = tipo === 'visitante'
+                    ? Boolean(elementos.visitaEstendidaInput && elementos.visitaEstendidaInput.checked)
+                    : false;
                 const dados = {
                     idPlanilha,
                     id: idPlanilha,
@@ -5831,9 +6003,13 @@
                     whatsapp: document.getElementById('whatsapp-contato').value.trim(),
                     volumes: volumesInformados,
                     horaPrevista: tipo === 'visitante' ? document.getElementById('hora-prevista').value : '',
+                    visitaEstendida: visitaEstendida,
                     tipo: tipo,
                     usuarioResponsavel: obterDescricaoResponsavelAtual()
                 };
+                if (visitaEstendida) {
+                    dados.horaPrevista = '';
+                }
                 if (tipo === 'acompanhante') {
                     termoPreCadastro = {
                         id: idPlanilha,
@@ -5892,6 +6068,7 @@
                                 whatsapp: dados.whatsapp,
                                 horaInicio: horaInicioLocal,
                                 horaPrevista: dados.horaPrevista || '',
+                                visitaEstendida: visitaEstendida,
                                 dataRegistro: agora.toISOString(),
                                 tipo: tipo
                             };
@@ -7060,7 +7237,9 @@
                     <p><strong>Leito:</strong> ${armario.leito || '-'}</p>
                     <p><strong>Volumes:</strong> ${armario.volumes || '-'}</p>
                     <p><strong>Início:</strong> ${armario.horaInicio || '-'}</p>
-                    ${armario.horaPrevista ? `<p><strong>Previsão de saída:</strong> ${armario.horaPrevista}</p>` : ''}
+                    ${armario.visitaEstendida
+                        ? '<p><strong>Visita:</strong> Estendida</p>'
+                        : (armario.horaPrevista ? `<p><strong>Previsão de saída:</strong> ${armario.horaPrevista}</p>` : '')}
                     ${armario.whatsapp ? `<p><strong>WhatsApp:</strong> ${armario.whatsapp}</p>` : ''}
                 </div>
             `;

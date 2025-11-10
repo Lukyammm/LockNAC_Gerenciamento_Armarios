@@ -153,6 +153,7 @@ function definirValorLinhaFlexivel(linha, estrutura, chaves, valor) {
 var CABECALHOS_WHATSAPP = ['whatsapp', 'wpp', 'whats app', 'whatsap', 'zap'];
 var CABECALHOS_NOME_VISITANTE = ['nome visitante', 'visitante', 'nome do visitante'];
 var CABECALHOS_NOME_ACOMPANHANTE = ['nome acompanhante', 'acompanhante', 'nome do acompanhante', 'responsavel', 'responsável'];
+var CABECALHOS_VISITA_ESTENDIDA = ['visita estendida', 'visita extendida', 'visita expandida'];
 
 function converterParaBoolean(valor) {
   if (valor === true || valor === false) {
@@ -1179,8 +1180,11 @@ function getArmariosFromSheet(sheetName, tipo, termosMap) {
 
   var isVisitante = sheetName === 'Visitantes';
   var estrutura = obterEstruturaPlanilha(sheet);
+  if (isVisitante) {
+    estrutura = garantirColunaVisitaEstendida(sheet, estrutura);
+  }
   var totalLinhas = sheet.getLastRow() - 1;
-  var totalColunas = estrutura.ultimaColuna || (isVisitante ? 13 : 12);
+  var totalColunas = estrutura.ultimaColuna || (isVisitante ? 14 : 12);
   var dados = sheet.getRange(2, 1, totalLinhas, totalColunas).getValues();
   var armarios = [];
 
@@ -1207,6 +1211,9 @@ function getArmariosFromSheet(sheetName, tipo, termosMap) {
   if (whatsappIndex === null || whatsappIndex === undefined) {
     whatsappIndex = isVisitante ? 12 : 9;
   }
+  var visitaEstendidaIndex = isVisitante
+    ? obterIndiceColuna(estrutura, CABECALHOS_VISITA_ESTENDIDA, null)
+    : -1;
 
   var houveAtualizacaoStatus = false;
   var agoraReferencia = new Date();
@@ -1274,8 +1281,12 @@ function getArmariosFromSheet(sheetName, tipo, termosMap) {
     if (isVisitante) {
       armario.horaPrevista = horaPrevistaIndex > -1 ? formatarHorarioPlanilha(row[horaPrevistaIndex]) : '';
       armario.dataRegistro = dataRegistroIndex > -1 ? formatarDataPlanilha(row[dataRegistroIndex]) : '';
+      armario.visitaEstendida = visitaEstendidaIndex > -1
+        ? converterParaBoolean(row[visitaEstendidaIndex])
+        : false;
     } else {
       armario.dataRegistro = dataRegistroIndex > -1 ? formatarDataPlanilha(row[dataRegistroIndex]) : '';
+      armario.visitaEstendida = false;
     }
 
     var volumesNumero = parseInt(armario.volumes, 10);
@@ -1379,7 +1390,10 @@ function cadastrarArmario(armarioData) {
     }
 
     var estrutura = obterEstruturaPlanilha(sheet);
-    var totalColunas = estrutura.ultimaColuna || (sheetName === 'Visitantes' ? 13 : 12);
+    if (sheetName === 'Visitantes') {
+      estrutura = garantirColunaVisitaEstendida(sheet, estrutura);
+    }
+    var totalColunas = estrutura.ultimaColuna || (sheetName === 'Visitantes' ? 14 : 12);
     var linhaPlanilha = -1;
     var linhaAtual = null;
     var idParametroBruto = armarioData.idPlanilha !== undefined && armarioData.idPlanilha !== ''
@@ -1458,7 +1472,9 @@ function cadastrarArmario(armarioData) {
     definirValorLinha(novaLinha, estrutura, 'volumes', volumes);
     definirValorLinha(novaLinha, estrutura, 'hora inicio', horaInicio);
     if (sheetName === 'Visitantes') {
-      definirValorLinha(novaLinha, estrutura, 'hora prevista', armarioData.horaPrevista || '');
+      var visitaEstendida = converterParaBoolean(armarioData.visitaEstendida);
+      definirValorLinha(novaLinha, estrutura, 'hora prevista', visitaEstendida ? '' : (armarioData.horaPrevista || ''));
+      definirValorLinha(novaLinha, estrutura, CABECALHOS_VISITA_ESTENDIDA, visitaEstendida);
     } else {
       definirValorLinha(novaLinha, estrutura, 'hora prevista', '');
     }
@@ -1538,7 +1554,10 @@ function liberarArmario(id, tipo, numero, usuarioResponsavel) {
 
     // Encontrar o armário na aba atual
     var estrutura = obterEstruturaPlanilha(sheet);
-    var totalColunas = estrutura.ultimaColuna || (sheetName === 'Visitantes' ? 13 : 12);
+    if (!ehAcompanhante) {
+      estrutura = garantirColunaVisitaEstendida(sheet, estrutura);
+    }
+    var totalColunas = estrutura.ultimaColuna || (sheetName === 'Visitantes' ? 14 : 12);
     var totalLinhas = sheet.getLastRow();
     if (totalLinhas <= 1) {
       return { success: false, error: 'Nenhum armário cadastrado' };
@@ -1603,6 +1622,7 @@ function liberarArmario(id, tipo, numero, usuarioResponsavel) {
     definirValorLinha(novaLinha, estrutura, 'hora inicio', '');
     if (sheetName === 'Visitantes') {
       definirValorLinha(novaLinha, estrutura, 'hora prevista', '');
+      definirValorLinha(novaLinha, estrutura, CABECALHOS_VISITA_ESTENDIDA, false);
     }
     var dataHoraAtual = obterDataHoraAtualFormatada();
     definirValorLinha(novaLinha, estrutura, 'data registro', dataHoraAtual.dataHoraIso);
@@ -2277,43 +2297,34 @@ function criarArmariosUso(armarios) {
         var lastRow = sheet.getLastRow();
         var novoId = lastRow > 1 ? Math.max(...sheet.getRange(2, 1, sheet.getLastRow()-1, 1).getValues().flat()) + 1 : 1;
 
-        var novaLinha;
-        var dataRegistro = obterDataHoraAtualFormatada().dataHoraIso;
-
+        var estrutura = obterEstruturaPlanilha(sheet);
         if (armario[2] === 'visitante') {
-          novaLinha = [
-            novoId,
-            armario[1], // número
-            'livre', // status
-            '', // nome
-            '', // paciente
-            '', // leito
-            0, // volumes
-            '', // hora início
-            '', // hora prevista
-            dataRegistro, // data registro
-            armario[3], // unidade
-            false, // termo aplicado
-            '' // WhatsApp
-          ];
-        } else {
-          novaLinha = [
-            novoId,
-            armario[1], // número
-            'livre', // status
-            '', // nome
-            '', // paciente
-            '', // leito
-            0, // volumes
-            '', // hora início
-            dataRegistro, // data registro
-            '', // WhatsApp
-            armario[3], // unidade
-            false // termo aplicado
-          ];
+          estrutura = garantirColunaVisitaEstendida(sheet, estrutura);
         }
 
-        sheet.getRange(lastRow + 1, 1, 1, novaLinha.length).setValues([novaLinha]);
+        var totalColunas = estrutura.ultimaColuna || (armario[2] === 'visitante' ? 14 : 12);
+        var novaLinha = new Array(totalColunas).fill('');
+        var dataRegistro = obterDataHoraAtualFormatada().dataHoraIso;
+        var nomeChavesCadastro = armario[2] === 'visitante' ? CABECALHOS_NOME_VISITANTE : CABECALHOS_NOME_ACOMPANHANTE;
+
+        definirValorLinha(novaLinha, estrutura, 'id', novoId);
+        definirValorLinha(novaLinha, estrutura, 'numero', armario[1]);
+        definirValorLinha(novaLinha, estrutura, 'status', 'livre');
+        definirValorLinha(novaLinha, estrutura, nomeChavesCadastro, '');
+        definirValorLinha(novaLinha, estrutura, 'nome paciente', '');
+        definirValorLinha(novaLinha, estrutura, 'leito', '');
+        definirValorLinha(novaLinha, estrutura, 'volumes', 0);
+        definirValorLinha(novaLinha, estrutura, 'hora inicio', '');
+        if (armario[2] === 'visitante') {
+          definirValorLinha(novaLinha, estrutura, 'hora prevista', '');
+          definirValorLinha(novaLinha, estrutura, CABECALHOS_VISITA_ESTENDIDA, false);
+        }
+        definirValorLinha(novaLinha, estrutura, 'data registro', dataRegistro);
+        definirValorLinha(novaLinha, estrutura, 'unidade', armario[3]);
+        definirValorLinha(novaLinha, estrutura, CABECALHOS_WHATSAPP, '');
+        definirValorLinha(novaLinha, estrutura, 'termo aplicado', false);
+
+        sheet.getRange(lastRow + 1, 1, 1, totalColunas).setValues([novaLinha]);
       }
     });
     
@@ -3679,6 +3690,31 @@ function garantirEstruturaHistorico(sheet) {
   return Math.max(totalColunas, minimoColunas);
 }
 
+function garantirColunaVisitaEstendida(sheet, estrutura) {
+  if (!sheet) {
+    return estrutura;
+  }
+
+  var estruturaAtual = estrutura || obterEstruturaPlanilha(sheet);
+  var indiceExistente = obterIndiceColuna(estruturaAtual, CABECALHOS_VISITA_ESTENDIDA, null);
+
+  if (indiceExistente !== null && indiceExistente !== undefined) {
+    return estruturaAtual;
+  }
+
+  var indiceHoraPrevista = obterIndiceColuna(estruturaAtual, 'hora prevista', null);
+  if (indiceHoraPrevista !== null && indiceHoraPrevista !== undefined) {
+    sheet.insertColumnAfter(indiceHoraPrevista + 1);
+    sheet.getRange(1, indiceHoraPrevista + 2).setValue('Visita Estendida');
+  } else {
+    var ultimaColuna = estruturaAtual.ultimaColuna || sheet.getLastColumn();
+    sheet.insertColumnAfter(ultimaColuna);
+    sheet.getRange(1, ultimaColuna + 1).setValue('Visita Estendida');
+  }
+
+  return obterEstruturaPlanilha(sheet);
+}
+
 function getMovimentacoes(dados) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName('Movimentações');
@@ -3768,7 +3804,10 @@ function salvarMovimentacao(dados) {
         var estruturaArmario = obterEstruturaPlanilha(armarioSheet);
         var totalLinhasArmario = armarioSheet.getLastRow();
         if (totalLinhasArmario > 1) {
-          var dadosArmario = armarioSheet.getRange(2, 1, totalLinhasArmario - 1, estruturaArmario.ultimaColuna || (nomeSheetArmario === 'Visitantes' ? 13 : 12)).getValues();
+          if (nomeSheetArmario === 'Visitantes') {
+            estruturaArmario = garantirColunaVisitaEstendida(armarioSheet, estruturaArmario);
+          }
+          var dadosArmario = armarioSheet.getRange(2, 1, totalLinhasArmario - 1, estruturaArmario.ultimaColuna || (nomeSheetArmario === 'Visitantes' ? 14 : 12)).getValues();
           for (var i = 0; i < dadosArmario.length; i++) {
             var linha = dadosArmario[i];
             if (String(linha[0]) === String(dados.armarioId)) {
