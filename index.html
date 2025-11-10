@@ -4696,6 +4696,10 @@
                 if (armario.status === 'livre') {
                     detailsHTML += '<p>Disponível para uso</p>';
                 } else {
+                    const termoHtml = armario.tipo === 'acompanhante'
+                        ? `<p><strong>Termo:</strong> ${formatarStatusTermo(armario.termoStatus)}</p>`
+                        : '';
+                    const dataRegistroHtml = `<p><strong>Data:</strong> ${armario.dataRegistro || '-'}</p>`;
                     detailsHTML += `
                         <p><strong>${armario.tipo === 'acompanhante' ? 'Acompanhante' : 'Visitante'}:</strong> ${armario.nomeVisitante}</p>
                         <p><strong>Paciente:</strong> ${armario.nomePaciente}</p>
@@ -4703,8 +4707,9 @@
                         <p><strong>Volumes:</strong> ${armario.volumes}</p>
                         ${armario.whatsapp ? `<p><strong>WhatsApp:</strong> ${armario.whatsapp}</p>` : ''}
                         <p><strong>Início:</strong> ${armario.horaInicio}</p>
-                        ${armario.horaPrevista ? `<p><strong>Previsão:</strong> ${armario.horaPrevista}</p>` : ''}
-                        ${armario.tipo === 'acompanhante' ? `<p><strong>Termo:</strong> ${formatarStatusTermo(armario.termoStatus)}</p>` : ''}
+                        ${armario.horaPrevista ? `<p><strong>Previsão de saída:</strong> ${armario.horaPrevista}</p>` : ''}
+                        ${termoHtml}
+                        ${dataRegistroHtml}
                     `;
                 }
                 card.innerHTML = `
@@ -5557,6 +5562,7 @@
                 const termoHtml = armario.tipo === 'acompanhante'
                     ? `<div class="info-box" style="margin-top:12px;">Termo de responsabilidade: <strong>${termoStatusTexto}</strong>${termoAviso}</div>`
                     : '';
+                const dataRegistroHtml = `<p><strong>Data:</strong> ${armario.dataRegistro || '-'}</p>`;
                 Swal.fire({
                     title: `Armário ${armario.numero}`,
                     html: `
@@ -5572,6 +5578,7 @@
                         ${armario.whatsapp ? `<p><strong>WhatsApp:</strong> ${armario.whatsapp}</p>` : ''}
                         <p><strong>Início:</strong> ${armario.horaInicio}</p>
                         ${armario.horaPrevista ? `<p><strong>Previsão de saída:</strong> ${armario.horaPrevista}</p>` : ''}
+                        ${dataRegistroHtml}
                         ${termoHtml}
                         ${armario.tipo === 'acompanhante' && termoPendente ? `<div style="margin-top:16px;"><button id="btn-aplicar-termo" class="swal2-confirm swal2-styled" style="background-color:#2c6e8f;">Aplicar termo agora</button></div>` : ''}
                     `,
