@@ -83,28 +83,43 @@
             flex-direction: column;
         }
         .sidebar-header {
-            padding: 20px;
+            padding: 24px 20px 20px;
             text-align: center;
             border-bottom: 1px solid rgba(255,255,255,0.1);
             display: flex;
             flex-direction: column;
             align-items: center;
+            gap: 10px;
+        }
+        .sidebar-brand {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
             gap: 6px;
         }
-        .sidebar-logo {
-            max-width: 150px;
-            width: 100%;
-            height: auto;
-            display: block;
+        .sidebar-logo-icon {
+            width: 54px;
+            height: 54px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: color-mix(in srgb, var(--light-color) 16%, transparent);
+            color: color-mix(in srgb, var(--light-color) 92%, var(--primary-dark) 8%);
+            font-size: 28px;
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.15);
         }
         .sidebar-title {
-            font-size: 1.25rem;
+            font-size: 1.1rem;
             font-weight: 600;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
         }
         .sidebar-header p {
-            font-size: 0.85rem;
-            opacity: 0.8;
+            font-size: 0.75rem;
+            opacity: 0.75;
             margin: 0;
+            letter-spacing: 0.04em;
         }
         .sidebar-menu {
             padding: 15px 0;
@@ -1941,8 +1956,20 @@
                 width: 70px;
                 overflow: visible;
             }
-            .sidebar-header h2, .sidebar-header p, .sidebar-menu span {
+            .sidebar-brand {
+                gap: 0;
+            }
+            .sidebar-header p,
+            .sidebar-title,
+            .sidebar-menu span,
+            .sidebar-logout-button span {
                 display: none;
+            }
+            .sidebar-logo-icon {
+                width: 42px;
+                height: 42px;
+                font-size: 22px;
+                box-shadow: none;
             }
             .sidebar-menu a {
                 text-align: center;
@@ -1951,6 +1978,9 @@
             .sidebar-menu i {
                 margin-right: 0;
                 font-size: 1.2rem;
+            }
+            .sidebar-logout-button {
+                padding: 12px;
             }
             .main-content {
                 margin-left: 70px;
@@ -2027,7 +2057,12 @@
         <!-- Sidebar -->
         <div class="sidebar">
             <div class="sidebar-header">
-                <div class="sidebar-title">LockNAC</div>
+                <div class="sidebar-brand">
+                    <div class="sidebar-logo-icon" aria-hidden="true">
+                        <i class="fas fa-lock"></i>
+                    </div>
+                    <div class="sidebar-title">LockNAC</div>
+                </div>
                 <p>Hospital Universitário do Ceará</p>
             </div>
             <nav class="sidebar-menu">
