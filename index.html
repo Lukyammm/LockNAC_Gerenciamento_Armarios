@@ -4699,7 +4699,8 @@
                     const termoHtml = armario.tipo === 'acompanhante'
                         ? `<p><strong>Termo:</strong> ${formatarStatusTermo(armario.termoStatus)}</p>`
                         : '';
-                    const dataRegistroHtml = `<p><strong>Data:</strong> ${armario.dataRegistro || '-'}</p>`;
+                    const dataRegistroFormatada = formatarDataComDiaSemana(armario.dataRegistro);
+                    const dataRegistroHtml = `<p><strong>Data:</strong> ${dataRegistroFormatada}</p>`;
                     detailsHTML += `
                         <p><strong>${armario.tipo === 'acompanhante' ? 'Acompanhante' : 'Visitante'}:</strong> ${armario.nomeVisitante}</p>
                         <p><strong>Paciente:</strong> ${armario.nomePaciente}</p>
@@ -5562,7 +5563,8 @@
                 const termoHtml = armario.tipo === 'acompanhante'
                     ? `<div class="info-box" style="margin-top:12px;">Termo de responsabilidade: <strong>${termoStatusTexto}</strong>${termoAviso}</div>`
                     : '';
-                const dataRegistroHtml = `<p><strong>Data:</strong> ${armario.dataRegistro || '-'}</p>`;
+                const dataRegistroFormatada = formatarDataComDiaSemana(armario.dataRegistro);
+                const dataRegistroHtml = `<p><strong>Data:</strong> ${dataRegistroFormatada}</p>`;
                 Swal.fire({
                     title: `Armário ${armario.numero}`,
                     html: `
@@ -6036,6 +6038,48 @@
             } catch {
                 return valor;
             }
+        }
+        function tentarConverterParaData(valor) {
+            if (!valor) return null;
+            if (valor instanceof Date && !Number.isNaN(valor.getTime())) {
+                return new Date(valor.getTime());
+            }
+            if (typeof valor === 'number' && Number.isFinite(valor)) {
+                const dataNumerica = new Date(valor);
+                return Number.isNaN(dataNumerica.getTime()) ? null : dataNumerica;
+            }
+            const texto = String(valor).trim();
+            if (!texto) return null;
+            if (/^\d{2}\/\d{2}\/\d{4}$/.test(texto)) {
+                const [dia, mes, ano] = texto.split('/').map(Number);
+                if (!Number.isNaN(dia) && !Number.isNaN(mes) && !Number.isNaN(ano)) {
+                    const dataLocal = new Date(ano, mes - 1, dia);
+                    return Number.isNaN(dataLocal.getTime()) ? null : dataLocal;
+                }
+            }
+            const normalizado = texto.replace(' ', 'T');
+            const data = new Date(normalizado);
+            return Number.isNaN(data.getTime()) ? null : data;
+        }
+        function obterDiaSemanaFormatado(valor) {
+            const dataObj = tentarConverterParaData(valor);
+            if (!dataObj) return '';
+            try {
+                return new Intl.DateTimeFormat('pt-BR', { weekday: 'long' }).format(dataObj);
+            } catch {
+                return '';
+            }
+        }
+        function formatarDataComDiaSemana(valor) {
+            const dataFormatada = formatarData(valor);
+            if (!valor || dataFormatada === '-') {
+                return dataFormatada;
+            }
+            const diaSemana = obterDiaSemanaFormatado(valor);
+            if (!diaSemana) {
+                return dataFormatada;
+            }
+            return `${dataFormatada} (${diaSemana})`;
         }
         function expandirAnoDoisDigitos(anoTexto) {
             const numero = parseInt(anoTexto, 10);

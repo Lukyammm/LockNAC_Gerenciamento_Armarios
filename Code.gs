@@ -409,6 +409,9 @@ const PASTA_DRIVE_ID = '1nYsGJJUIufxDYVvIanVXCbPx7YuBOYDP';
 
 // Configuração de cache para leitura dos termos
 const TERMOS_CACHE_KEY = 'termos_registrados_cache_v1';
+const TERMOS_CACHE_META_KEY = 'termos_registrados_cache_meta_v1';
+const TERMOS_CACHE_CHUNK_PREFIX = 'termos_registrados_cache_chunk_v1';
+const TERMOS_CACHE_CHUNK_TAMANHO_MAX = 75000; // ~75 KB para manter margem
 const TERMOS_CACHE_TTL = 120; // segundos
 
 // Configurações gerais de cache para otimizar leituras
@@ -2487,9 +2490,236 @@ function alternarStatusUnidade(dados) {
 }
 
 // Funções para Termos de Responsabilidade
+function obterChavesCacheTermos(cache) {
+  var chaves = [TERMOS_CACHE_KEY, TERMOS_CACHE_META_KEY];
+  if (!cache) {
+    return chaves;
+  }
+
+  try {
+    var metaJson = cache.get(TERMOS_CACHE_META_KEY);
+    if (metaJson) {
+      try {
+        var meta = JSON.parse(metaJson);
+        if (meta && Array.isArray(meta.chaves)) {
+          meta.chaves.forEach(function(chave) {
+            if (chave && chaves.indexOf(chave) === -1) {
+              chaves.push(chave);
+            }
+          });
+        }
+      } catch (erroParseMeta) {
+        registrarLog('AVISO_CACHE', 'Falha ao interpretar metadados do cache de termos: ' + erroParseMeta);
+      }
+    }
+  } catch (erroLeituraMeta) {
+    registrarLog('AVISO_CACHE', 'Falha ao consultar metadados do cache de termos: ' + erroLeituraMeta);
+  }
+
+  return chaves;
+}
+
+function invalidarCacheTermosInterno(cache) {
+  if (!cache) {
+    return;
+  }
+
+  var chaves = obterChavesCacheTermos(cache);
+  var chavesVistas = {};
+
+  chaves.forEach(function(chave) {
+    if (!chave || chavesVistas[chave]) {
+      return;
+    }
+    chavesVistas[chave] = true;
+    try {
+      cache.remove(chave);
+    } catch (erroRemocao) {
+      registrarLog('AVISO_CACHE', 'Falha ao remover chave de cache de termos (' + chave + '): ' + erroRemocao);
+    }
+  });
+}
+
+function carregarTermosDoCache(cache) {
+  if (!cache) {
+    return { sucesso: false, termos: [] };
+  }
+
+  try {
+    var metaJson = cache.get(TERMOS_CACHE_META_KEY);
+    if (metaJson) {
+      var termos = [];
+      var meta = JSON.parse(metaJson);
+      if (meta && Array.isArray(meta.chaves)) {
+        var dadosIncompletos = false;
+        for (var i = 0; i < meta.chaves.length; i++) {
+          var chave = meta.chaves[i];
+          if (!chave) {
+            continue;
+          }
+          var chunkJson = cache.get(chave);
+          if (!chunkJson) {
+            dadosIncompletos = true;
+            break;
+          }
+          try {
+            var chunk = JSON.parse(chunkJson);
+            if (Array.isArray(chunk) && chunk.length) {
+              Array.prototype.push.apply(termos, chunk);
+            }
+          } catch (erroParseChunk) {
+            dadosIncompletos = true;
+            registrarLog('AVISO_CACHE', 'Falha ao interpretar bloco do cache de termos: ' + erroParseChunk);
+            break;
+          }
+        }
+
+        if (!dadosIncompletos) {
+          return { sucesso: true, termos: termos };
+        }
+
+        invalidarCacheTermosInterno(cache);
+        return { sucesso: false, termos: [] };
+      }
+
+      if (meta && Array.isArray(meta.chaves) && !meta.chaves.length) {
+        return { sucesso: true, termos: [] };
+      }
+    }
+  } catch (erroCacheParticionado) {
+    registrarLog('AVISO_CACHE', 'Falha ao ler cache particionado de termos: ' + erroCacheParticionado);
+    invalidarCacheTermosInterno(cache);
+    return { sucesso: false, termos: [] };
+  }
+
+  try {
+    var dadosCache = cache.get(TERMOS_CACHE_KEY);
+    if (dadosCache) {
+      var termosCache = JSON.parse(dadosCache);
+      if (Array.isArray(termosCache)) {
+        return { sucesso: true, termos: termosCache };
+      }
+    }
+  } catch (erroCacheLegado) {
+    registrarLog('AVISO_CACHE', 'Falha ao ler cache de termos: ' + erroCacheLegado);
+    invalidarCacheTermosInterno(cache);
+  }
+
+  return { sucesso: false, termos: [] };
+}
+
+function armazenarTermosNoCache(cache, termos) {
+  if (!cache) {
+    return;
+  }
+
+  invalidarCacheTermosInterno(cache);
+
+  if (!Array.isArray(termos) || !termos.length) {
+    try {
+      cache.put(TERMOS_CACHE_META_KEY, JSON.stringify({ chaves: [] }), TERMOS_CACHE_TTL);
+    } catch (erroMetaVazio) {
+      registrarLog('AVISO_CACHE', 'Falha ao armazenar metadados vazios do cache de termos: ' + erroMetaVazio);
+    }
+    try {
+      cache.remove(TERMOS_CACHE_KEY);
+    } catch (erroRemocaoLegado) {
+      registrarLog('AVISO_CACHE', 'Falha ao remover cache legado de termos: ' + erroRemocaoLegado);
+    }
+    return;
+  }
+
+  var chunkChaves = [];
+  var chunkAtual = [];
+  var chunkTamanho = 2; // Para os colchetes do array
+  var chunkIndice = 0;
+  var cacheValido = true;
+
+  function salvarChunkAtual() {
+    if (!chunkAtual.length) {
+      return true;
+    }
+    var chaveChunk = TERMOS_CACHE_CHUNK_PREFIX + '_' + chunkIndice++;
+    try {
+      cache.put(chaveChunk, JSON.stringify(chunkAtual), TERMOS_CACHE_TTL);
+      chunkChaves.push(chaveChunk);
+      return true;
+    } catch (erroGravacao) {
+      registrarLog('AVISO_CACHE', 'Falha ao armazenar bloco do cache de termos: ' + erroGravacao);
+      return false;
+    }
+  }
+
+  for (var i = 0; i < termos.length; i++) {
+    var termo = termos[i];
+    var termoJson;
+    try {
+      termoJson = JSON.stringify(termo);
+    } catch (erroSerializacao) {
+      registrarLog('AVISO_CACHE', 'Falha ao serializar termo para cache: ' + erroSerializacao);
+      cacheValido = false;
+      break;
+    }
+
+    if (!termoJson || termoJson.length + 2 > TERMOS_CACHE_CHUNK_TAMANHO_MAX) {
+      registrarLog('AVISO_CACHE', 'Termo excede limite de tamanho para cache: ' + (termo && termo.id ? termo.id : 'sem id'));
+      cacheValido = false;
+      break;
+    }
+
+    var separador = chunkAtual.length ? 1 : 0;
+    if (chunkTamanho + termoJson.length + separador > TERMOS_CACHE_CHUNK_TAMANHO_MAX) {
+      if (!salvarChunkAtual()) {
+        cacheValido = false;
+        break;
+      }
+      chunkAtual = [];
+      chunkTamanho = 2;
+    }
+
+    chunkAtual.push(termo);
+    chunkTamanho += termoJson.length + separador;
+  }
+
+  if (cacheValido && chunkAtual.length) {
+    if (!salvarChunkAtual()) {
+      cacheValido = false;
+    }
+  }
+
+  if (!cacheValido) {
+    chunkChaves.forEach(function(chave) {
+      try {
+        cache.remove(chave);
+      } catch (erroRemoverChunk) {
+        registrarLog('AVISO_CACHE', 'Falha ao remover bloco inválido do cache de termos (' + chave + '): ' + erroRemoverChunk);
+      }
+    });
+    return;
+  }
+
+  try {
+    cache.put(TERMOS_CACHE_META_KEY, JSON.stringify({ chaves: chunkChaves }), TERMOS_CACHE_TTL);
+    try {
+      cache.remove(TERMOS_CACHE_KEY);
+    } catch (erroRemocaoLegadoFinal) {
+      registrarLog('AVISO_CACHE', 'Falha ao remover cache legado de termos após atualização: ' + erroRemocaoLegadoFinal);
+    }
+  } catch (erroMeta) {
+    registrarLog('AVISO_CACHE', 'Falha ao armazenar metadados do cache de termos: ' + erroMeta);
+    chunkChaves.forEach(function(chave) {
+      try {
+        cache.remove(chave);
+      } catch (erroRemoverChunkFinal) {
+        registrarLog('AVISO_CACHE', 'Falha ao remover bloco de cache após erro de metadados (' + chave + '): ' + erroRemoverChunkFinal);
+      }
+    });
+  }
+}
+
 function limparCacheTermos() {
   try {
-    CacheService.getScriptCache().remove(TERMOS_CACHE_KEY);
+    invalidarCacheTermosInterno(CacheService.getScriptCache());
   } catch (erroCache) {
     registrarLog('AVISO_CACHE', 'Falha ao limpar cache de termos: ' + erroCache);
   }
@@ -2833,16 +3063,9 @@ function obterTermosRegistrados() {
   }
 
   var cache = CacheService.getScriptCache();
-  var dadosCache = null;
-  try {
-    dadosCache = cache.get(TERMOS_CACHE_KEY);
-    if (dadosCache) {
-      var termosCache = JSON.parse(dadosCache);
-      return { sheet: sheet, termos: termosCache };
-    }
-  } catch (erroCache) {
-    cache.remove(TERMOS_CACHE_KEY);
-    registrarLog('AVISO_CACHE', 'Falha ao ler cache de termos: ' + erroCache);
+  var resultadoCache = carregarTermosDoCache(cache);
+  if (resultadoCache && resultadoCache.sucesso) {
+    return { sheet: sheet, termos: resultadoCache.termos };
   }
 
   var data = sheet.getDataRange().getValues();
@@ -2899,11 +3122,7 @@ function obterTermosRegistrados() {
     });
   }
 
-  try {
-    cache.put(TERMOS_CACHE_KEY, JSON.stringify(termos), TERMOS_CACHE_TTL);
-  } catch (erroArmazenamento) {
-    registrarLog('AVISO_CACHE', 'Falha ao armazenar cache de termos: ' + erroArmazenamento);
-  }
+  armazenarTermosNoCache(cache, termos);
 
   return { sheet: sheet, termos: termos };
 }
