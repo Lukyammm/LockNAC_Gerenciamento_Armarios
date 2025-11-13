@@ -1152,6 +1152,52 @@
             justify-content: space-between;
             align-items: center;
         }
+        .table-header-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .table-header-info h3 {
+            margin: 0;
+            font-size: 1.1rem;
+        }
+        .table-header-info p {
+            margin: 0;
+            font-size: 0.85rem;
+            color: var(--muted-color);
+        }
+        .table-header-controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .table-header-controls .date-filter {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            min-width: 180px;
+        }
+        .table-header-controls label {
+            font-size: 0.8rem;
+            color: var(--muted-color);
+            font-weight: 600;
+            letter-spacing: 0.02em;
+        }
+        .table-header-controls input[type="date"] {
+            padding: 10px 12px;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+            background-color: white;
+            font-size: 0.95rem;
+            color: var(--text-color);
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+        .table-header-controls input[type="date"]:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px var(--focus-ring);
+            outline: none;
+        }
         .table-container {
             overflow-x: auto;
         }
@@ -1163,6 +1209,24 @@
             padding: 12px 16px;
             text-align: left;
             border-bottom: 1px solid color-mix(in srgb, var(--dark-color) 6%, transparent);
+        }
+        .table-empty,
+        .table-loading,
+        .table-error {
+            text-align: center;
+            padding: 20px;
+            font-size: 0.95rem;
+        }
+        .table-empty {
+            color: var(--muted-color);
+        }
+        .table-loading {
+            color: var(--primary-dark);
+            font-weight: 600;
+        }
+        .table-error {
+            color: var(--danger-color);
+            font-weight: 600;
         }
         th {
             background-color: color-mix(in srgb, var(--light-color) 85%, white 15%);
@@ -2023,6 +2087,21 @@
             .armarios-grid {
                 grid-template-columns: 1fr;
             }
+            .table-header {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 16px;
+            }
+            .table-header-controls {
+                width: 100%;
+                justify-content: flex-start;
+            }
+            .table-header-controls .date-filter {
+                width: 100%;
+            }
+            .table-header-controls input[type="date"] {
+                width: 100%;
+            }
         }
         @media (max-width: 576px) {
             .cards-hero {
@@ -2038,6 +2117,9 @@
                 flex-direction: column;
                 align-items: stretch;
                 gap: 12px;
+            }
+            .table-header-controls button {
+                width: 100%;
             }
             .header-selectors {
                 width: 100%;
@@ -2116,6 +2198,7 @@
                     <li><a href="#" data-page="acompanhantes"><i class="fas fa-user-friends"></i> <span>Acompanhantes</span></a></li>
                     <li><a href="#" data-page="historico-visitantes"><i class="fas fa-history"></i> <span>Histórico Visitantes</span></a></li>
                     <li><a href="#" data-page="historico-acompanhantes"><i class="fas fa-history"></i> <span>Histórico Acompanhantes</span></a></li>
+                    <li><a href="#" data-page="liberacao"><i class="fas fa-table"></i> <span>Liberações</span></a></li>
                     <li><a href="#" data-page="termo-responsabilidade"><i class="fas fa-file-signature"></i> <span>Termo de Responsabilidade</span></a></li>
                     <li><a href="#" data-page="cadastro-armarios"><i class="fas fa-archive"></i> <span>Cadastro de Armários</span></a></li>
                     <li><a href="#" data-page="cadastro-unidades"><i class="fas fa-hospital"></i> <span>Cadastro de Unidades</span></a></li>
@@ -2361,6 +2444,38 @@
                             </thead>
                             <tbody>
                                 <!-- Dados serão preenchidos via JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <!-- Liberação -->
+            <div class="page" id="liberacao">
+                <div class="data-table">
+                    <div class="table-header">
+                        <div class="table-header-info">
+                            <h3>Liberações do dia</h3>
+                            <p id="liberacao-resumo">Selecione uma data para visualizar os registros de liberação.</p>
+                        </div>
+                        <div class="table-header-controls">
+                            <div class="date-filter">
+                                <label for="liberacao-data">Data de liberação</label>
+                                <input type="date" id="liberacao-data" name="liberacao-data" autocomplete="off">
+                            </div>
+                            <button class="btn btn-secondary" id="liberacao-refresh">
+                                <i class="fas fa-sync-alt"></i> Atualizar
+                            </button>
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <table id="tabela-liberacao">
+                            <thead>
+                                <tr></tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="table-empty" colspan="7">Selecione uma data para carregar os registros de liberação.</td>
+                                </tr>
                             </tbody>
                         </table>
                     </div>
@@ -2910,6 +3025,19 @@
         // URL do Google Apps Script - ATUALIZE COM SUA URL
         const SCRIPT_URL = 'https://script.google.com/a/macros/isgh.org.br/s/AKfycbzbGb6sQR1auYsyTB-kwPos7Cd7swLuTUDiAzzpwTPW2cj76ykYzKYgBDXA-g5ef7pbpw/exec';
         // Estado da aplicação
+        function criarEstadoLiberacaoInicial() {
+            return {
+                colunas: [],
+                linhas: [],
+                dataSelecionada: '',
+                totalPlanilha: 0,
+                totalFiltrado: 0,
+                carregando: false,
+                ultimaAtualizacao: null,
+                linhasCarregadas: false,
+                erro: ''
+            };
+        }
         function criarEstadoInicial() {
             return {
                 perfilAtual: 'geral',
@@ -2928,10 +3056,17 @@
                 logs: [],
                 carregamentoTermosId: 0,
                 autenticado: false,
-                usuarioAutenticado: null
+                usuarioAutenticado: null,
+                liberacao: criarEstadoLiberacaoInicial()
             };
         }
         let estado = criarEstadoInicial();
+        function obterEstadoLiberacao() {
+            if (!estado.liberacao) {
+                estado.liberacao = criarEstadoLiberacaoInicial();
+            }
+            return estado.liberacao;
+        }
         const STORAGE_KEYS = {
             sessaoUsuario: 'locknac_sessao_usuario'
         };
@@ -3269,6 +3404,12 @@
             tabelaUnidadesBody: document.querySelector('#tabela-unidades tbody'),
             tabelaUsuarios: document.getElementById('tabela-usuarios'),
             tabelaUsuariosBody: document.querySelector('#tabela-usuarios tbody'),
+            tabelaLiberacao: document.getElementById('tabela-liberacao'),
+            tabelaLiberacaoHead: document.querySelector('#tabela-liberacao thead tr'),
+            tabelaLiberacaoBody: document.querySelector('#tabela-liberacao tbody'),
+            liberacaoData: document.getElementById('liberacao-data'),
+            liberacaoRefresh: document.getElementById('liberacao-refresh'),
+            liberacaoResumo: document.getElementById('liberacao-resumo'),
             logoutButton: document.getElementById('logout-button')
         };
         popularAvataresPadrao();
@@ -4169,6 +4310,13 @@
             if (headerTitle) {
                 headerTitle.textContent = 'Dashboard';
             }
+            if (elementos.liberacaoResumo) {
+                elementos.liberacaoResumo.textContent = 'Selecione uma data para visualizar os registros de liberação.';
+            }
+            if (elementos.liberacaoData) {
+                elementos.liberacaoData.value = obterDataHoraLocalPadrao().data;
+            }
+            mostrarEstadoTabelaLiberacao('Selecione uma data para carregar os registros de liberação.');
             termoPassoAtual = 0;
             termoArmarioAtual = null;
             movimentacaoArmarioAtual = null;
@@ -4660,6 +4808,32 @@
                     renderizarArmarios();
                 });
             });
+            if (elementos.liberacaoData) {
+                const padrao = converterDataTextoParaISO(elementos.liberacaoData.value) || obterDataHoraLocalPadrao().data;
+                elementos.liberacaoData.value = padrao;
+                elementos.liberacaoData.addEventListener('change', () => {
+                    const iso = converterDataTextoParaISO(elementos.liberacaoData.value);
+                    if (!iso) {
+                        const estadoLiberacao = obterEstadoLiberacao();
+                        estadoLiberacao.linhasCarregadas = false;
+                        estadoLiberacao.erro = 'Informe uma data válida para realizar a busca.';
+                        mostrarEstadoTabelaLiberacao('Informe uma data válida para realizar a busca.', 'error');
+                        atualizarResumoLiberacao();
+                        return;
+                    }
+                    if (elementos.liberacaoData.value !== iso) {
+                        elementos.liberacaoData.value = iso;
+                    }
+                    carregarTabelaLiberacao({ dataSelecionada: iso, forcarAtualizacao: true });
+                });
+            }
+            if (elementos.liberacaoRefresh) {
+                configurarBotaoAcao(elementos.liberacaoRefresh, async () => {
+                    const iso = converterDataTextoParaISO(elementos.liberacaoData?.value || '')
+                        || obterDataHoraLocalPadrao().data;
+                    await carregarTabelaLiberacao({ dataSelecionada: iso, forcarAtualizacao: true });
+                });
+            }
             // Formulários
             elementos.armarioForm.addEventListener('submit', function(e) {
                 e.preventDefault();
@@ -5104,6 +5278,9 @@
                     case 'historico-acompanhantes':
                         await carregarHistoricoAcompanhantes();
                         break;
+                    case 'liberacao':
+                        await carregarTabelaLiberacao();
+                        break;
                     case 'termo-responsabilidade':
                         await carregarTabelaTermos({ recarregarArmarios });
                         break;
@@ -5123,6 +5300,150 @@
             } catch (error) {
                 console.error('Erro ao carregar dados da tabela:', error);
                 mostrarErro('Erro ao carregar dados');
+            }
+        }
+        function mostrarEstadoTabelaLiberacao(mensagem, tipo = 'empty') {
+            const tbody = elementos.tabelaLiberacaoBody;
+            if (!tbody) return;
+            const estadoLiberacao = obterEstadoLiberacao();
+            const colunas = Math.max(
+                estadoLiberacao.colunas?.length || estadoLiberacao.linhas?.[0]?.length || 0,
+                7
+            );
+            const tr = document.createElement('tr');
+            const td = document.createElement('td');
+            td.colSpan = colunas;
+            if (tipo === 'loading') {
+                td.className = 'table-loading';
+            } else if (tipo === 'error') {
+                td.className = 'table-error';
+            } else {
+                td.className = 'table-empty';
+            }
+            td.textContent = mensagem;
+            tr.appendChild(td);
+            tbody.innerHTML = '';
+            tbody.appendChild(tr);
+        }
+        function atualizarResumoLiberacao() {
+            const resumoEl = elementos.liberacaoResumo;
+            if (!resumoEl) return;
+            const estadoLiberacao = obterEstadoLiberacao();
+            if (estadoLiberacao.carregando) {
+                resumoEl.textContent = 'Carregando registros...';
+                return;
+            }
+            if (estadoLiberacao.erro) {
+                resumoEl.textContent = estadoLiberacao.erro;
+                return;
+            }
+            if (!estadoLiberacao.linhasCarregadas) {
+                resumoEl.textContent = 'Selecione uma data para visualizar os registros de liberação.';
+                return;
+            }
+            const dataFormatada = estadoLiberacao.dataSelecionada ? formatarData(estadoLiberacao.dataSelecionada) : '';
+            if (!estadoLiberacao.totalFiltrado) {
+                resumoEl.textContent = dataFormatada
+                    ? `Nenhum registro encontrado para ${dataFormatada}.`
+                    : 'Nenhum registro encontrado para a data selecionada.';
+                return;
+            }
+            const horaAtualizacao = estadoLiberacao.ultimaAtualizacao
+                ? new Date(estadoLiberacao.ultimaAtualizacao)
+                : new Date();
+            const horaFormatada = horaAtualizacao.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            const totalPlanilha = estadoLiberacao.totalPlanilha || estadoLiberacao.totalFiltrado;
+            resumoEl.textContent = `${estadoLiberacao.totalFiltrado} de ${totalPlanilha} registros exibidos (${dataFormatada}) • Atualizado às ${horaFormatada}`;
+        }
+        function renderizarTabelaLiberacao() {
+            const headRow = elementos.tabelaLiberacaoHead;
+            const tbody = elementos.tabelaLiberacaoBody;
+            if (!headRow || !tbody) return;
+            const estadoLiberacao = obterEstadoLiberacao();
+            const colunas = Array.isArray(estadoLiberacao.colunas) ? estadoLiberacao.colunas : [];
+            const linhas = Array.isArray(estadoLiberacao.linhas) ? estadoLiberacao.linhas : [];
+            const totalColunas = colunas.length || (linhas[0]?.length ?? 0);
+            headRow.innerHTML = '';
+            if (colunas.length) {
+                const fragmentHead = document.createDocumentFragment();
+                colunas.forEach(coluna => {
+                    const th = document.createElement('th');
+                    th.scope = 'col';
+                    th.textContent = coluna || '';
+                    fragmentHead.appendChild(th);
+                });
+                headRow.appendChild(fragmentHead);
+            }
+            tbody.innerHTML = '';
+            if (!linhas.length) {
+                mostrarEstadoTabelaLiberacao('Nenhum registro encontrado para a data selecionada.');
+                return;
+            }
+            const fragmentBody = document.createDocumentFragment();
+            linhas.forEach(linha => {
+                const tr = document.createElement('tr');
+                const limiteColunas = totalColunas || linha.length;
+                for (let i = 0; i < limiteColunas; i++) {
+                    const td = document.createElement('td');
+                    const valor = linha[i] !== undefined && linha[i] !== null ? linha[i] : '';
+                    td.textContent = valor;
+                    tr.appendChild(td);
+                }
+                fragmentBody.appendChild(tr);
+            });
+            tbody.appendChild(fragmentBody);
+        }
+        async function carregarTabelaLiberacao(opcoes = {}) {
+            const tabela = elementos.tabelaLiberacao;
+            if (!tabela) return;
+            const estadoLiberacao = obterEstadoLiberacao();
+            const { dataSelecionada, forcarAtualizacao = false } = opcoes;
+            const dataPadrao = obterDataHoraLocalPadrao().data;
+            const dataFiltroIso = converterDataTextoParaISO(dataSelecionada || elementos.liberacaoData?.value || estadoLiberacao.dataSelecionada || dataPadrao);
+            if (!dataFiltroIso) {
+                mostrarEstadoTabelaLiberacao('Informe uma data válida para realizar a busca.', 'error');
+                estadoLiberacao.erro = 'Informe uma data válida para realizar a busca.';
+                atualizarResumoLiberacao();
+                return;
+            }
+            if (elementos.liberacaoData && elementos.liberacaoData.value !== dataFiltroIso) {
+                elementos.liberacaoData.value = dataFiltroIso;
+            }
+            if (!forcarAtualizacao && estadoLiberacao.linhasCarregadas && estadoLiberacao.dataSelecionada === dataFiltroIso) {
+                atualizarResumoLiberacao();
+                renderizarTabelaLiberacao();
+                return;
+            }
+            estadoLiberacao.carregando = true;
+            estadoLiberacao.erro = '';
+            estadoLiberacao.dataSelecionada = dataFiltroIso;
+            atualizarResumoLiberacao();
+            mostrarEstadoTabelaLiberacao('Carregando registros...', 'loading');
+            try {
+                const resultado = await callGoogleScript('getPlanilhaLiberacao', { data: dataFiltroIso });
+                if (!resultado.success) {
+                    throw new Error(resultado.error || 'Falha ao obter dados.');
+                }
+                estadoLiberacao.colunas = Array.isArray(resultado.columns) ? resultado.columns : [];
+                estadoLiberacao.linhas = Array.isArray(resultado.rows) ? resultado.rows : [];
+                estadoLiberacao.totalPlanilha = Number(resultado.totalPlanilha) || estadoLiberacao.linhas.length;
+                estadoLiberacao.totalFiltrado = Number(resultado.totalFiltrado) || estadoLiberacao.linhas.length;
+                estadoLiberacao.ultimaAtualizacao = Date.now();
+                estadoLiberacao.linhasCarregadas = true;
+                estadoLiberacao.erro = '';
+                renderizarTabelaLiberacao();
+            } catch (erro) {
+                console.error('Erro ao carregar dados de liberação:', erro);
+                estadoLiberacao.erro = 'Não foi possível carregar os registros de liberação.';
+                estadoLiberacao.linhas = [];
+                estadoLiberacao.linhasCarregadas = false;
+                estadoLiberacao.totalPlanilha = 0;
+                estadoLiberacao.totalFiltrado = 0;
+                mostrarEstadoTabelaLiberacao('Não foi possível carregar os registros de liberação.', 'error');
+                mostrarErro('Não foi possível carregar os registros de liberação.');
+            } finally {
+                estadoLiberacao.carregando = false;
+                atualizarResumoLiberacao();
             }
         }
         async function carregarTabelaVisitantes(unidadeFiltro, opcoes = {}) {

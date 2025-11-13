@@ -240,6 +240,125 @@ function normalizarListaUnidadesParametro(valor) {
   return [];
 }
 
+function obterTimeZoneAplicacao() {
+  var timezone = '';
+  try {
+    timezone = Session.getScriptTimeZone();
+  } catch (erroTimezone) {
+    console.error('Erro ao obter fuso horário do script:', erroTimezone);
+  }
+
+  if (!timezone) {
+    timezone = 'America/Sao_Paulo';
+  }
+
+  return timezone;
+}
+
+function normalizarDataParaTimeZone(data, timezone) {
+  if (!(data instanceof Date) || Number.isNaN(data.getTime())) {
+    return null;
+  }
+
+  var tz = timezone || obterTimeZoneAplicacao();
+  var dataTexto = Utilities.formatDate(data, tz, 'yyyy-MM-dd');
+  var partes = dataTexto.split('-');
+  if (partes.length !== 3) {
+    return null;
+  }
+
+  var ano = Number(partes[0]);
+  var mes = Number(partes[1]);
+  var dia = Number(partes[2]);
+  if (!Number.isFinite(ano) || !Number.isFinite(mes) || !Number.isFinite(dia)) {
+    return null;
+  }
+
+  return new Date(ano, mes - 1, dia);
+}
+
+function interpretarDataParametroSeguro(valor, timezone) {
+  if (valor === null || valor === undefined) {
+    return null;
+  }
+
+  var texto = valor.toString().trim();
+  if (!texto) {
+    return null;
+  }
+
+  var tz = timezone || obterTimeZoneAplicacao();
+
+  var matchIso = texto.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (matchIso) {
+    var anoIso = Number(matchIso[1]);
+    var mesIso = Number(matchIso[2]);
+    var diaIso = Number(matchIso[3]);
+    var dataIso = new Date(anoIso, mesIso - 1, diaIso);
+    return normalizarDataParaTimeZone(dataIso, tz);
+  }
+
+  var matchBR = texto.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (matchBR) {
+    var diaBr = Number(matchBR[1]);
+    var mesBr = Number(matchBR[2]);
+    var anoBr = Number(matchBR[3]);
+    var dataBr = new Date(anoBr, mesBr - 1, diaBr);
+    return normalizarDataParaTimeZone(dataBr, tz);
+  }
+
+  var tentativa = new Date(texto);
+  if (!Number.isNaN(tentativa.getTime())) {
+    return normalizarDataParaTimeZone(tentativa, tz);
+  }
+
+  return null;
+}
+
+function extrairDataValidaDaCelula(valor, exibicao, timezone) {
+  var tz = timezone || obterTimeZoneAplicacao();
+
+  if (valor instanceof Date && !Number.isNaN(valor.getTime())) {
+    return normalizarDataParaTimeZone(valor, tz);
+  }
+
+  if (typeof valor === 'number' && Number.isFinite(valor)) {
+    var baseExcel = new Date(Date.UTC(1899, 11, 30));
+    var dataSerial = new Date(baseExcel.getTime() + Math.round(valor * 24 * 60 * 60 * 1000));
+    var normalizadaSerial = normalizarDataParaTimeZone(dataSerial, tz);
+    if (normalizadaSerial) {
+      return normalizadaSerial;
+    }
+  }
+
+  var texto = '';
+  if (typeof valor === 'string' && valor.trim()) {
+    texto = valor.trim();
+  } else if (exibicao !== null && exibicao !== undefined) {
+    texto = exibicao.toString().trim();
+  }
+
+  if (!texto) {
+    return null;
+  }
+
+  return interpretarDataParametroSeguro(texto, tz);
+}
+
+function obterDataAtualNormalizada(timezone) {
+  var agora = new Date();
+  return normalizarDataParaTimeZone(agora, timezone || obterTimeZoneAplicacao());
+}
+
+function gerarChaveDataComparacao(data, timezone) {
+  var normalizada = normalizarDataParaTimeZone(data, timezone || obterTimeZoneAplicacao());
+  if (!normalizada) {
+    return '';
+  }
+
+  return Utilities.formatDate(normalizada, timezone || obterTimeZoneAplicacao(), 'yyyyMMdd');
+}
+
 function obterMapasUnidades() {
   var mapas = {
     porId: {},
@@ -421,6 +540,12 @@ const CACHE_TTL_PADRAO = 60; // segundos
 const CACHE_TTL_ARMARIOS = 45;
 const CACHE_TTL_HISTORICO = 90;
 const CACHE_TTL_MOVIMENTACOES = 45;
+
+// Configuração da planilha de liberações externas
+const PLANILHA_LIBERACAO_ID = '1UR6ynp6nxbpVMephgKkT8_YDc_ih5bYK565IebfojPI';
+const PLANILHA_LIBERACAO_ABA = 'LIBERACAO';
+const PLANILHA_LIBERACAO_LINHA_CABECALHO = 10;
+const PLANILHA_LIBERACAO_COLUNA_DATA = 4; // Coluna D
 
 function montarChaveCache() {
   var partes = Array.prototype.slice.call(arguments).filter(function(parte) {
@@ -1018,7 +1143,11 @@ function handlePost(e) {
       case 'getHistorico':
         return ContentService.createTextOutput(JSON.stringify(getHistorico(e.parameter.tipo)))
           .setMimeType(ContentService.MimeType.JSON);
-      
+
+      case 'getPlanilhaLiberacao':
+        return ContentService.createTextOutput(JSON.stringify(getPlanilhaLiberacao(e.parameter)))
+          .setMimeType(ContentService.MimeType.JSON);
+
       case 'getCadastroArmarios':
         return ContentService.createTextOutput(JSON.stringify(getCadastroArmarios()))
           .setMimeType(ContentService.MimeType.JSON);
@@ -2165,6 +2294,92 @@ function getHistorico(tipo) {
       return { success: false, error: error.toString() };
     }
   });
+}
+
+function getPlanilhaLiberacao(parametros) {
+  var timezone = obterTimeZoneAplicacao();
+
+  try {
+    var dataParametro = parametros && parametros.data !== undefined ? parametros.data : '';
+    var dataFiltro = interpretarDataParametroSeguro(dataParametro, timezone) || obterDataAtualNormalizada(timezone);
+    if (!dataFiltro) {
+      dataFiltro = obterDataAtualNormalizada(timezone);
+    }
+
+    var dataFiltroChave = gerarChaveDataComparacao(dataFiltro, timezone);
+
+    var spreadsheet;
+    try {
+      spreadsheet = SpreadsheetApp.openById(PLANILHA_LIBERACAO_ID);
+    } catch (erroAcesso) {
+      registrarLog('ERRO', 'Falha ao acessar planilha de liberações: ' + erroAcesso.toString());
+      return { success: false, error: 'Não foi possível acessar a planilha de liberações.' };
+    }
+
+    if (!spreadsheet) {
+      return { success: false, error: 'Planilha de liberações não encontrada.' };
+    }
+
+    var sheet = spreadsheet.getSheetByName(PLANILHA_LIBERACAO_ABA);
+    if (!sheet) {
+      return { success: false, error: 'Aba de liberações não encontrada.' };
+    }
+
+    var totalColunas = Math.max(sheet.getLastColumn(), 7);
+    var cabecalhos = sheet.getRange(PLANILHA_LIBERACAO_LINHA_CABECALHO, 1, 1, totalColunas).getDisplayValues()[0] || [];
+    cabecalhos = cabecalhos.map(function(valor) {
+      return valor === null || valor === undefined ? '' : valor;
+    });
+
+    var totalLinhasDados = Math.max(sheet.getLastRow() - PLANILHA_LIBERACAO_LINHA_CABECALHO, 0);
+    var linhasFiltradas = [];
+    var totalPlanilha = totalLinhasDados;
+
+    if (totalLinhasDados > 0) {
+      var rangeDados = sheet.getRange(PLANILHA_LIBERACAO_LINHA_CABECALHO + 1, 1, totalLinhasDados, totalColunas);
+      var valoresBrutos = rangeDados.getValues();
+      var valoresFormatados = rangeDados.getDisplayValues();
+
+      for (var i = 0; i < valoresBrutos.length; i++) {
+        var linhaBruta = valoresBrutos[i];
+        var linhaExibicao = valoresFormatados[i];
+        var possuiConteudo = linhaExibicao.some(function(celula) {
+          return celula !== null && celula !== undefined && String(celula).trim() !== '';
+        });
+
+        if (!possuiConteudo) {
+          continue;
+        }
+
+        var valorData = linhaBruta[PLANILHA_LIBERACAO_COLUNA_DATA - 1];
+        var exibicaoData = linhaExibicao[PLANILHA_LIBERACAO_COLUNA_DATA - 1];
+        var dataLinha = extrairDataValidaDaCelula(valorData, exibicaoData, timezone);
+        var chaveLinha = gerarChaveDataComparacao(dataLinha, timezone);
+
+        if (chaveLinha && chaveLinha === dataFiltroChave) {
+          linhasFiltradas.push(linhaExibicao.map(function(celula) {
+            return celula === null || celula === undefined ? '' : celula;
+          }));
+        }
+      }
+    }
+
+    return {
+      success: true,
+      columns: cabecalhos,
+      rows: linhasFiltradas,
+      filtro: {
+        data: Utilities.formatDate(dataFiltro, timezone, 'yyyy-MM-dd'),
+        dataFormatada: Utilities.formatDate(dataFiltro, timezone, 'dd/MM/yyyy')
+      },
+      totalPlanilha: totalPlanilha,
+      totalFiltrado: linhasFiltradas.length
+    };
+
+  } catch (erro) {
+    registrarLog('ERRO', 'Erro ao buscar dados de liberação: ' + erro.toString());
+    return { success: false, error: 'Erro ao buscar dados de liberação.' };
+  }
 }
 
 // Funções para Cadastro de Armários Físicos
