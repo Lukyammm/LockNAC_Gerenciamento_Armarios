@@ -1168,29 +1168,23 @@
         }
         .table-header-controls {
             display: flex;
-            align-items: flex-start;
+            align-items: center;
             gap: 12px;
             flex-wrap: wrap;
         }
-        .table-header-controls .filter-field {
+        .table-header-controls .date-filter {
             display: flex;
             flex-direction: column;
             gap: 6px;
             min-width: 180px;
         }
-        .table-header-controls .date-range-filter {
-            min-width: 220px;
-        }
-        .table-header-controls .filter-label,
         .table-header-controls label {
             font-size: 0.8rem;
             color: var(--muted-color);
             font-weight: 600;
             letter-spacing: 0.02em;
         }
-        .table-header-controls input[type="date"],
-        .table-header-controls input[type="text"],
-        .table-header-controls select {
+        .table-header-controls input[type="date"] {
             padding: 10px 12px;
             border-radius: 10px;
             border: 1px solid var(--border-color);
@@ -1199,89 +1193,10 @@
             color: var(--text-color);
             transition: border-color 0.2s ease, box-shadow 0.2s ease;
         }
-        .table-header-controls select[multiple] {
-            min-height: 136px;
-            resize: vertical;
-        }
-        .table-header-controls input[type="date"]:focus,
-        .table-header-controls input[type="text"]:focus,
-        .table-header-controls select:focus {
+        .table-header-controls input[type="date"]:focus {
             border-color: var(--primary-color);
             box-shadow: 0 0 0 3px var(--focus-ring);
             outline: none;
-        }
-        .date-range-inputs {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .date-range-inputs input[type="date"] {
-            flex: 1;
-            min-width: 0;
-        }
-        .date-range-separator {
-            font-size: 0.85rem;
-            color: var(--muted-color);
-            user-select: none;
-        }
-        .filter-hint {
-            font-size: 0.75rem;
-            color: var(--muted-color);
-            max-width: 220px;
-        }
-        .chip-filter {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-        }
-        .chip-option {
-            position: relative;
-            display: inline-flex;
-        }
-        .chip-option input {
-            position: absolute;
-            opacity: 0;
-            pointer-events: none;
-        }
-        .chip-option span {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            padding: 6px 12px;
-            border-radius: 999px;
-            border: 1px solid var(--border-color);
-            font-size: 0.85rem;
-            color: var(--text-color);
-            background-color: #fff;
-            cursor: pointer;
-            transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
-        }
-        .chip-option input:focus + span {
-            box-shadow: 0 0 0 3px var(--focus-ring);
-        }
-        .chip-option input:checked + span {
-            background-color: var(--primary-color);
-            border-color: var(--primary-color);
-            color: #fff;
-        }
-        .chip-empty {
-            font-size: 0.85rem;
-            color: var(--muted-color);
-        }
-        .input-invalid {
-            border-color: var(--danger-color) !important;
-            box-shadow: 0 0 0 3px rgba(229, 57, 53, 0.12) !important;
-        }
-        .sr-only {
-            position: absolute;
-            width: 1px;
-            height: 1px;
-            padding: 0;
-            margin: -1px;
-            overflow: hidden;
-            clip: rect(0, 0, 0, 0);
-            white-space: nowrap;
-            border: 0;
         }
         .table-container {
             overflow-x: auto;
@@ -2543,34 +2458,9 @@
                             <p id="liberacao-resumo">Selecione uma data para visualizar os registros de liberação.</p>
                         </div>
                         <div class="table-header-controls">
-                            <div class="filter-field date-range-filter">
-                                <span class="filter-label">Período</span>
-                                <div class="date-range-inputs">
-                                    <label class="sr-only" for="liberacao-data-inicio">Data inicial</label>
-                                    <input type="date" id="liberacao-data-inicio" name="liberacao-data-inicio" autocomplete="off">
-                                    <span class="date-range-separator" aria-hidden="true">até</span>
-                                    <label class="sr-only" for="liberacao-data-fim">Data final</label>
-                                    <input type="date" id="liberacao-data-fim" name="liberacao-data-fim" autocomplete="off">
-                                </div>
-                            </div>
-                            <div class="filter-field multi-date-filter">
-                                <label for="liberacao-datas-selecionadas">Datas específicas</label>
-                                <select id="liberacao-datas-selecionadas" name="liberacao-datas-selecionadas" multiple size="4" aria-describedby="liberacao-datas-dica"></select>
-                                <span id="liberacao-datas-dica" class="filter-hint">Selecione datas adicionais para incluir na busca.</span>
-                            </div>
-                            <div class="filter-field">
-                                <label for="liberacao-prontuario">Prontuário</label>
-                                <input type="text" id="liberacao-prontuario" name="liberacao-prontuario" autocomplete="off" list="liberacao-prontuario-opcoes" placeholder="Ex.: 123456">
-                                <datalist id="liberacao-prontuario-opcoes"></datalist>
-                            </div>
-                            <div class="filter-field">
-                                <label for="liberacao-paciente">Paciente</label>
-                                <input type="text" id="liberacao-paciente" name="liberacao-paciente" autocomplete="off" list="liberacao-paciente-opcoes" placeholder="Nome do paciente">
-                                <datalist id="liberacao-paciente-opcoes"></datalist>
-                            </div>
-                            <div class="filter-field situacao-filter">
-                                <span class="filter-label">Situação</span>
-                                <div id="liberacao-situacao-chips" class="chip-filter" role="group" aria-label="Filtrar por situação"></div>
+                            <div class="date-filter">
+                                <label for="liberacao-data">Data de liberação</label>
+                                <input type="date" id="liberacao-data" name="liberacao-data" autocomplete="off">
                             </div>
                             <button class="btn btn-secondary" id="liberacao-refresh">
                                 <i class="fas fa-sync-alt"></i> Atualizar
@@ -3145,15 +3035,7 @@
                 carregando: false,
                 ultimaAtualizacao: null,
                 linhasCarregadas: false,
-                erro: '',
-                filtros: criarFiltrosLiberacaoPadrao(),
-                sugestoes: {
-                    prontuarios: [],
-                    pacientes: [],
-                    situacoes: [],
-                    datas: []
-                },
-                ultimaChaveFiltros: ''
+                erro: ''
             };
         }
         function criarEstadoInicial() {
@@ -3183,54 +3065,7 @@
             if (!estado.liberacao) {
                 estado.liberacao = criarEstadoLiberacaoInicial();
             }
-            if (!estado.liberacao.filtros) {
-                estado.liberacao.filtros = criarFiltrosLiberacaoPadrao();
-            }
             return estado.liberacao;
-        }
-        function criarFiltrosLiberacaoPadrao() {
-            const padrao = obterDataHoraLocalPadrao().data;
-            return {
-                dataInicio: padrao,
-                dataFim: padrao,
-                datasSelecionadas: [],
-                prontuario: '',
-                paciente: '',
-                situacoes: []
-            };
-        }
-        function sanitizarTextoFiltro(valor, limite = 120) {
-            if (valor === null || valor === undefined) {
-                return '';
-            }
-            let texto = valor.toString().replace(/[<>]/g, '').replace(/[\u0000-\u001F\u007F]/g, '').trim();
-            if (limite && texto.length > limite) {
-                texto = texto.slice(0, limite);
-            }
-            return texto;
-        }
-        function listasIguais(a = [], b = []) {
-            if (a.length !== b.length) {
-                return false;
-            }
-            for (let i = 0; i < a.length; i++) {
-                if (a[i] !== b[i]) {
-                    return false;
-                }
-            }
-            return true;
-        }
-        function atualizarEstadoValidadeCampo(campo, valido = true) {
-            if (!campo) {
-                return;
-            }
-            if (valido) {
-                campo.classList.remove('input-invalid');
-                campo.removeAttribute('aria-invalid');
-            } else {
-                campo.classList.add('input-invalid');
-                campo.setAttribute('aria-invalid', 'true');
-            }
         }
         const STORAGE_KEYS = {
             sessaoUsuario: 'locknac_sessao_usuario'
@@ -3572,14 +3407,7 @@
             tabelaLiberacao: document.getElementById('tabela-liberacao'),
             tabelaLiberacaoHead: document.querySelector('#tabela-liberacao thead tr'),
             tabelaLiberacaoBody: document.querySelector('#tabela-liberacao tbody'),
-            liberacaoDataInicio: document.getElementById('liberacao-data-inicio'),
-            liberacaoDataFim: document.getElementById('liberacao-data-fim'),
-            liberacaoDatasSelecionadas: document.getElementById('liberacao-datas-selecionadas'),
-            liberacaoProntuario: document.getElementById('liberacao-prontuario'),
-            liberacaoProntuarioDatalist: document.getElementById('liberacao-prontuario-opcoes'),
-            liberacaoPaciente: document.getElementById('liberacao-paciente'),
-            liberacaoPacienteDatalist: document.getElementById('liberacao-paciente-opcoes'),
-            liberacaoSituacaoChips: document.getElementById('liberacao-situacao-chips'),
+            liberacaoData: document.getElementById('liberacao-data'),
             liberacaoRefresh: document.getElementById('liberacao-refresh'),
             liberacaoResumo: document.getElementById('liberacao-resumo'),
             logoutButton: document.getElementById('logout-button')
@@ -3856,443 +3684,6 @@
         });
         const normalizarTexto = (valor) => (valor ?? '').toString().trim().toLowerCase();
         const normalizarIdentificador = (valor) => (valor ?? '').toString().trim();
-        function coletarFiltrosLiberacaoDosInputs(opcoes = {}) {
-            const { sinalizar = true } = opcoes;
-            const erros = [];
-            const dataInicioIso = converterDataTextoParaISO(elementos.liberacaoDataInicio?.value || '');
-            const dataFimIso = converterDataTextoParaISO(elementos.liberacaoDataFim?.value || '');
-            const padrao = obterDataHoraLocalPadrao().data;
-
-            atualizarEstadoValidadeCampo(elementos.liberacaoDataInicio, Boolean(dataInicioIso));
-            atualizarEstadoValidadeCampo(elementos.liberacaoDataFim, Boolean(dataFimIso));
-
-            let dataInicio = dataInicioIso || padrao;
-            let dataFim = dataFimIso || dataInicio;
-
-            if (!dataInicioIso) {
-                erros.push('Informe a data inicial do período.');
-            }
-            if (!dataFimIso) {
-                erros.push('Informe a data final do período.');
-            }
-
-            if (dataInicio && dataFim && dataInicio > dataFim) {
-                erros.push('A data inicial não pode ser maior que a data final.');
-                atualizarEstadoValidadeCampo(elementos.liberacaoDataInicio, false);
-                atualizarEstadoValidadeCampo(elementos.liberacaoDataFim, false);
-            }
-
-            const prontuario = sanitizarTextoFiltro(elementos.liberacaoProntuario?.value || '');
-            if (elementos.liberacaoProntuario) {
-                elementos.liberacaoProntuario.value = prontuario;
-            }
-
-            const paciente = sanitizarTextoFiltro(elementos.liberacaoPaciente?.value || '');
-            if (elementos.liberacaoPaciente) {
-                elementos.liberacaoPaciente.value = paciente;
-            }
-
-            const datasSelecionadas = Array.from(elementos.liberacaoDatasSelecionadas?.selectedOptions || [])
-                .map(option => converterDataTextoParaISO(option.value))
-                .filter(Boolean);
-            const datasUnicas = [];
-            const datasVistas = new Set();
-            datasSelecionadas.forEach(valor => {
-                if (!datasVistas.has(valor)) {
-                    datasVistas.add(valor);
-                    datasUnicas.push(valor);
-                }
-            });
-
-            const situacoesSelecionadas = Array.from(elementos.liberacaoSituacaoChips?.querySelectorAll('input[type="checkbox"]:checked') || [])
-                .map(input => sanitizarTextoFiltro(input.value, 80))
-                .filter(Boolean);
-            const situacoesUnicas = [];
-            const situacoesVistas = new Set();
-            situacoesSelecionadas.forEach(valor => {
-                const chave = normalizarTexto(valor);
-                if (!chave || situacoesVistas.has(chave)) {
-                    return;
-                }
-                situacoesVistas.add(chave);
-                situacoesUnicas.push(valor);
-            });
-
-            if (erros.length && sinalizar) {
-                mostrarErro(erros[0]);
-            }
-            if (erros.length) {
-                return null;
-            }
-
-            return {
-                dataInicio,
-                dataFim,
-                datasSelecionadas: datasUnicas,
-                prontuario,
-                paciente,
-                situacoes: situacoesUnicas
-            };
-        }
-        function aplicarFiltrosLiberacaoNosInputs(filtros) {
-            if (!filtros) {
-                return;
-            }
-            if (elementos.liberacaoDataInicio) {
-                elementos.liberacaoDataInicio.value = filtros.dataInicio || '';
-                atualizarEstadoValidadeCampo(elementos.liberacaoDataInicio, Boolean(filtros.dataInicio));
-            }
-            if (elementos.liberacaoDataFim) {
-                elementos.liberacaoDataFim.value = filtros.dataFim || '';
-                atualizarEstadoValidadeCampo(elementos.liberacaoDataFim, Boolean(filtros.dataFim));
-            }
-            if (elementos.liberacaoProntuario) {
-                elementos.liberacaoProntuario.value = filtros.prontuario || '';
-            }
-            if (elementos.liberacaoPaciente) {
-                elementos.liberacaoPaciente.value = filtros.paciente || '';
-            }
-            if (elementos.liberacaoDatasSelecionadas) {
-                const selecionadas = new Set((filtros.datasSelecionadas || []).map(valor => converterDataTextoParaISO(valor)).filter(Boolean));
-                Array.from(elementos.liberacaoDatasSelecionadas.options).forEach(option => {
-                    const iso = converterDataTextoParaISO(option.value);
-                    option.selected = iso ? selecionadas.has(iso) : false;
-                });
-            }
-            if (elementos.liberacaoSituacaoChips) {
-                const selecionadas = new Set((filtros.situacoes || []).map(valor => normalizarTexto(valor)));
-                elementos.liberacaoSituacaoChips.querySelectorAll('input[type="checkbox"]').forEach(input => {
-                    const chave = normalizarTexto(input.value);
-                    input.checked = selecionadas.has(chave);
-                });
-            }
-        }
-        function normalizarSugestoesLiberacao(resposta) {
-            const vazio = { prontuarios: [], pacientes: [], situacoes: [], datas: [] };
-            if (!resposta || typeof resposta !== 'object') {
-                return vazio;
-            }
-            const extrairLista = (lista) => {
-                const valores = Array.isArray(lista) ? lista : [];
-                const vistos = new Set();
-                const resultado = [];
-                valores.forEach(item => {
-                    const texto = sanitizarTextoFiltro(item);
-                    const chave = normalizarTexto(texto);
-                    if (!texto || vistos.has(chave)) {
-                        return;
-                    }
-                    vistos.add(chave);
-                    resultado.push(texto);
-                });
-                return resultado;
-            };
-            const datas = [];
-            const datasVistas = new Set();
-            if (Array.isArray(resposta.datas)) {
-                resposta.datas.forEach(item => {
-                    const iso = converterDataTextoParaISO(item?.value ?? item?.data ?? item);
-                    if (!iso || datasVistas.has(iso)) {
-                        return;
-                    }
-                    datasVistas.add(iso);
-                    const label = sanitizarTextoFiltro(item?.label || formatarData(iso));
-                    datas.push({ value: iso, label: label || formatarData(iso) });
-                });
-            }
-            datas.sort((a, b) => a.value.localeCompare(b.value));
-            return {
-                prontuarios: extrairLista(resposta.prontuarios),
-                pacientes: extrairLista(resposta.pacientes),
-                situacoes: extrairLista(resposta.situacoes),
-                datas
-            };
-        }
-        function atualizarSugestoesLiberacao() {
-            const estadoLiberacao = obterEstadoLiberacao();
-            const sugestoes = estadoLiberacao.sugestoes || {};
-            const atualizarDatalist = (datalist, valores) => {
-                if (!datalist) {
-                    return;
-                }
-                const fragment = document.createDocumentFragment();
-                const vistos = new Set();
-                (Array.isArray(valores) ? valores : []).forEach(valor => {
-                    const texto = sanitizarTextoFiltro(valor);
-                    const chave = normalizarTexto(texto);
-                    if (!texto || vistos.has(chave)) {
-                        return;
-                    }
-                    vistos.add(chave);
-                    const option = document.createElement('option');
-                    option.value = texto;
-                    fragment.appendChild(option);
-                });
-                datalist.innerHTML = '';
-                datalist.appendChild(fragment);
-            };
-            atualizarDatalist(elementos.liberacaoProntuarioDatalist, sugestoes.prontuarios);
-            atualizarDatalist(elementos.liberacaoPacienteDatalist, sugestoes.pacientes);
-
-            if (elementos.liberacaoDatasSelecionadas) {
-                const select = elementos.liberacaoDatasSelecionadas;
-                const selecionadas = new Set((estadoLiberacao.filtros?.datasSelecionadas || []).map(valor => converterDataTextoParaISO(valor)).filter(Boolean));
-                const fragment = document.createDocumentFragment();
-                const datasDisponiveis = Array.isArray(sugestoes.datas) ? sugestoes.datas : [];
-                const datasVistas = new Set();
-                datasDisponiveis.forEach(item => {
-                    const iso = converterDataTextoParaISO(item?.value ?? item);
-                    if (!iso || datasVistas.has(iso)) {
-                        return;
-                    }
-                    datasVistas.add(iso);
-                    const option = document.createElement('option');
-                    option.value = iso;
-                    option.textContent = sanitizarTextoFiltro(item?.label || formatarData(iso));
-                    option.selected = selecionadas.has(iso);
-                    fragment.appendChild(option);
-                });
-                selecionadas.forEach(iso => {
-                    if (datasVistas.has(iso)) {
-                        return;
-                    }
-                    const option = document.createElement('option');
-                    option.value = iso;
-                    option.textContent = formatarData(iso);
-                    option.selected = true;
-                    fragment.appendChild(option);
-                });
-                select.innerHTML = '';
-                select.appendChild(fragment);
-            }
-
-            if (elementos.liberacaoSituacaoChips) {
-                const container = elementos.liberacaoSituacaoChips;
-                const selecionadas = new Set((estadoLiberacao.filtros?.situacoes || []).map(valor => normalizarTexto(valor)));
-                const fragment = document.createDocumentFragment();
-                const vistos = new Set();
-                const situacoes = Array.isArray(sugestoes.situacoes) ? sugestoes.situacoes : [];
-
-                situacoes.forEach((valor, indice) => {
-                    const texto = sanitizarTextoFiltro(valor, 80);
-                    const chave = normalizarTexto(texto);
-                    if (!texto || vistos.has(chave)) {
-                        return;
-                    }
-                    vistos.add(chave);
-                    const label = document.createElement('label');
-                    label.className = 'chip-option';
-                    const input = document.createElement('input');
-                    input.type = 'checkbox';
-                    input.value = texto;
-                    input.id = `situacao-chip-${indice}`;
-                    input.checked = selecionadas.has(chave);
-                    const span = document.createElement('span');
-                    span.textContent = texto;
-                    label.appendChild(input);
-                    label.appendChild(span);
-                    fragment.appendChild(label);
-                });
-
-                (estadoLiberacao.filtros?.situacoes || []).forEach(valor => {
-                    const texto = sanitizarTextoFiltro(valor, 80);
-                    const chave = normalizarTexto(texto);
-                    if (!texto || vistos.has(chave)) {
-                        return;
-                    }
-                    vistos.add(chave);
-                    const label = document.createElement('label');
-                    label.className = 'chip-option';
-                    const input = document.createElement('input');
-                    input.type = 'checkbox';
-                    input.value = texto;
-                    input.checked = true;
-                    const span = document.createElement('span');
-                    span.textContent = texto;
-                    label.appendChild(input);
-                    label.appendChild(span);
-                    fragment.appendChild(label);
-                });
-
-                container.innerHTML = '';
-                if (fragment.childNodes.length) {
-                    container.appendChild(fragment);
-                } else {
-                    const vazio = document.createElement('span');
-                    vazio.className = 'chip-empty';
-                    vazio.textContent = 'Sem situações disponíveis.';
-                    container.appendChild(vazio);
-                }
-            }
-        }
-        function montarParametrosLiberacao(filtros) {
-            const payload = {
-                dataInicio: filtros.dataInicio || '',
-                dataFim: filtros.dataFim || '',
-                prontuario: filtros.prontuario || '',
-                paciente: filtros.paciente || ''
-            };
-            if (Array.isArray(filtros.datasSelecionadas) && filtros.datasSelecionadas.length) {
-                payload.datasSelecionadas = filtros.datasSelecionadas;
-            }
-            if (Array.isArray(filtros.situacoes) && filtros.situacoes.length) {
-                payload.situacoes = filtros.situacoes;
-            }
-            return payload;
-        }
-        async function atualizarFiltrosLiberacao(novosFiltros, opcoes = {}) {
-            const estadoLiberacao = obterEstadoLiberacao();
-            const filtrosAtuais = estadoLiberacao.filtros || criarFiltrosLiberacaoPadrao();
-            const atualizados = { ...filtrosAtuais };
-            let alterou = false;
-
-            if (novosFiltros.dataInicio && novosFiltros.dataInicio !== filtrosAtuais.dataInicio) {
-                atualizados.dataInicio = novosFiltros.dataInicio;
-                alterou = true;
-            }
-            if (novosFiltros.dataFim && novosFiltros.dataFim !== filtrosAtuais.dataFim) {
-                atualizados.dataFim = novosFiltros.dataFim;
-                alterou = true;
-            }
-
-            if (Array.isArray(novosFiltros.datasSelecionadas)) {
-                const listaDatas = Array.from(new Set(novosFiltros.datasSelecionadas.map(valor => converterDataTextoParaISO(valor)).filter(Boolean))).sort();
-                if (!listasIguais(listaDatas, filtrosAtuais.datasSelecionadas || [])) {
-                    atualizados.datasSelecionadas = listaDatas;
-                    alterou = true;
-                }
-            }
-
-            if (typeof novosFiltros.prontuario === 'string') {
-                const texto = sanitizarTextoFiltro(novosFiltros.prontuario);
-                if (texto !== filtrosAtuais.prontuario) {
-                    atualizados.prontuario = texto;
-                    alterou = true;
-                }
-            }
-
-            if (typeof novosFiltros.paciente === 'string') {
-                const texto = sanitizarTextoFiltro(novosFiltros.paciente);
-                if (texto !== filtrosAtuais.paciente) {
-                    atualizados.paciente = texto;
-                    alterou = true;
-                }
-            }
-
-            if (Array.isArray(novosFiltros.situacoes)) {
-                const listaSituacoes = [];
-                const vistosSituacao = new Set();
-                novosFiltros.situacoes.forEach(valor => {
-                    const texto = sanitizarTextoFiltro(valor, 80);
-                    const chave = normalizarTexto(texto);
-                    if (!texto || vistosSituacao.has(chave)) {
-                        return;
-                    }
-                    vistosSituacao.add(chave);
-                    listaSituacoes.push(texto);
-                });
-                if (!listasIguais(listaSituacoes, filtrosAtuais.situacoes || [])) {
-                    atualizados.situacoes = listaSituacoes;
-                    alterou = true;
-                }
-            }
-
-            if (alterou) {
-                estadoLiberacao.filtros = atualizados;
-            }
-
-            if (alterou || opcoes.forcarRecarregamento || opcoes.ignorarCache) {
-                await carregarTabelaLiberacao({ forcarAtualizacao: Boolean(opcoes.ignorarCache) });
-            }
-        }
-        function inicializarFiltrosLiberacao() {
-            const estadoLiberacao = obterEstadoLiberacao();
-            aplicarFiltrosLiberacaoNosInputs(estadoLiberacao.filtros);
-            atualizarSugestoesLiberacao();
-
-            const reagendarAtualizacao = debounce(() => {
-                const filtros = coletarFiltrosLiberacaoDosInputs();
-                if (!filtros) {
-                    return;
-                }
-                atualizarFiltrosLiberacao(filtros, { forcarRecarregamento: true }).catch(erro => {
-                    console.error('Erro ao aplicar filtros de liberação:', erro);
-                });
-            }, 280);
-
-            [elementos.liberacaoDataInicio, elementos.liberacaoDataFim].forEach(campo => {
-                if (!campo) {
-                    return;
-                }
-                campo.addEventListener('change', reagendarAtualizacao);
-            });
-
-            if (elementos.liberacaoDatasSelecionadas) {
-                elementos.liberacaoDatasSelecionadas.addEventListener('change', reagendarAtualizacao);
-            }
-
-            if (elementos.liberacaoSituacaoChips) {
-                elementos.liberacaoSituacaoChips.addEventListener('change', reagendarAtualizacao);
-            }
-
-            [elementos.liberacaoProntuario, elementos.liberacaoPaciente].forEach(campo => {
-                if (!campo) {
-                    return;
-                }
-                campo.addEventListener('input', reagendarAtualizacao);
-                campo.addEventListener('blur', () => {
-                    const filtros = coletarFiltrosLiberacaoDosInputs({ sinalizar: false });
-                    if (filtros) {
-                        aplicarFiltrosLiberacaoNosInputs(filtros);
-                    }
-                });
-            });
-
-            if (elementos.liberacaoRefresh) {
-                configurarBotaoAcao(elementos.liberacaoRefresh, async () => {
-                    const filtros = coletarFiltrosLiberacaoDosInputs();
-                    if (!filtros) {
-                        return;
-                    }
-                    await atualizarFiltrosLiberacao(filtros, { ignorarCache: true });
-                });
-            }
-        }
-        function montarDescricaoFiltroLiberacao(filtros = {}) {
-            const partes = [];
-            const inicioIso = converterDataTextoParaISO(filtros.dataInicio);
-            const fimIso = converterDataTextoParaISO(filtros.dataFim);
-            if (inicioIso && fimIso) {
-                if (inicioIso === fimIso) {
-                    partes.push(`em ${formatarData(inicioIso)}`);
-                } else {
-                    partes.push(`entre ${formatarData(inicioIso)} e ${formatarData(fimIso)}`);
-                }
-            }
-            const extras = Array.isArray(filtros.datasSelecionadas)
-                ? filtros.datasSelecionadas.map(valor => converterDataTextoParaISO(valor)).filter(Boolean)
-                : [];
-            if (extras.length) {
-                const lista = extras.map(valor => formatarData(valor)).filter(Boolean);
-                partes.push(`datas específicas: ${lista.join(', ')}`);
-            }
-            if (filtros.prontuario) {
-                partes.push(`prontuário "${filtros.prontuario}"`);
-            }
-            if (filtros.paciente) {
-                partes.push(`paciente "${filtros.paciente}"`);
-            }
-            if (Array.isArray(filtros.situacoes) && filtros.situacoes.length) {
-                partes.push(`situação ${filtros.situacoes.join(', ')}`);
-            }
-            return partes.join(' • ');
-        }
-        function construirMensagemSemResultados(filtros) {
-            const descricao = montarDescricaoFiltroLiberacao(filtros);
-            return descricao
-                ? `Nenhum registro encontrado (${descricao}).`
-                : 'Nenhum registro encontrado com os filtros selecionados.';
-        }
         function montarIdentificadoresArmario(armario) {
             if (!armario) {
                 return null;
@@ -4920,13 +4311,12 @@
                 headerTitle.textContent = 'Dashboard';
             }
             if (elementos.liberacaoResumo) {
-                elementos.liberacaoResumo.textContent = 'Ajuste os filtros para visualizar os registros de liberação.';
+                elementos.liberacaoResumo.textContent = 'Selecione uma data para visualizar os registros de liberação.';
             }
-            const estadoLiberacao = obterEstadoLiberacao();
-            estadoLiberacao.filtros = criarFiltrosLiberacaoPadrao();
-            aplicarFiltrosLiberacaoNosInputs(estadoLiberacao.filtros);
-            atualizarSugestoesLiberacao();
-            mostrarEstadoTabelaLiberacao('Ajuste os filtros para carregar os registros de liberação.');
+            if (elementos.liberacaoData) {
+                elementos.liberacaoData.value = obterDataHoraLocalPadrao().data;
+            }
+            mostrarEstadoTabelaLiberacao('Selecione uma data para carregar os registros de liberação.');
             termoPassoAtual = 0;
             termoArmarioAtual = null;
             movimentacaoArmarioAtual = null;
@@ -5418,7 +4808,32 @@
                     renderizarArmarios();
                 });
             });
-            inicializarFiltrosLiberacao();
+            if (elementos.liberacaoData) {
+                const padrao = converterDataTextoParaISO(elementos.liberacaoData.value) || obterDataHoraLocalPadrao().data;
+                elementos.liberacaoData.value = padrao;
+                elementos.liberacaoData.addEventListener('change', () => {
+                    const iso = converterDataTextoParaISO(elementos.liberacaoData.value);
+                    if (!iso) {
+                        const estadoLiberacao = obterEstadoLiberacao();
+                        estadoLiberacao.linhasCarregadas = false;
+                        estadoLiberacao.erro = 'Informe uma data válida para realizar a busca.';
+                        mostrarEstadoTabelaLiberacao('Informe uma data válida para realizar a busca.', 'error');
+                        atualizarResumoLiberacao();
+                        return;
+                    }
+                    if (elementos.liberacaoData.value !== iso) {
+                        elementos.liberacaoData.value = iso;
+                    }
+                    carregarTabelaLiberacao({ dataSelecionada: iso, forcarAtualizacao: true });
+                });
+            }
+            if (elementos.liberacaoRefresh) {
+                configurarBotaoAcao(elementos.liberacaoRefresh, async () => {
+                    const iso = converterDataTextoParaISO(elementos.liberacaoData?.value || '')
+                        || obterDataHoraLocalPadrao().data;
+                    await carregarTabelaLiberacao({ dataSelecionada: iso, forcarAtualizacao: true });
+                });
+            }
             // Formulários
             elementos.armarioForm.addEventListener('submit', function(e) {
                 e.preventDefault();
@@ -5923,14 +5338,14 @@
                 return;
             }
             if (!estadoLiberacao.linhasCarregadas) {
-                resumoEl.textContent = 'Ajuste os filtros para visualizar os registros de liberação.';
+                resumoEl.textContent = 'Selecione uma data para visualizar os registros de liberação.';
                 return;
             }
-            const descricao = montarDescricaoFiltroLiberacao(estadoLiberacao.filtros);
+            const dataFormatada = estadoLiberacao.dataSelecionada ? formatarData(estadoLiberacao.dataSelecionada) : '';
             if (!estadoLiberacao.totalFiltrado) {
-                resumoEl.textContent = descricao
-                    ? `Nenhum registro encontrado (${descricao}).`
-                    : 'Nenhum registro encontrado com os filtros selecionados.';
+                resumoEl.textContent = dataFormatada
+                    ? `Nenhum registro encontrado para ${dataFormatada}.`
+                    : 'Nenhum registro encontrado para a data selecionada.';
                 return;
             }
             const horaAtualizacao = estadoLiberacao.ultimaAtualizacao
@@ -5938,7 +5353,7 @@
                 : new Date();
             const horaFormatada = horaAtualizacao.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
             const totalPlanilha = estadoLiberacao.totalPlanilha || estadoLiberacao.totalFiltrado;
-            resumoEl.textContent = `${estadoLiberacao.totalFiltrado} de ${totalPlanilha} registros exibidos${descricao ? ` (${descricao})` : ''} • Atualizado às ${horaFormatada}`;
+            resumoEl.textContent = `${estadoLiberacao.totalFiltrado} de ${totalPlanilha} registros exibidos (${dataFormatada}) • Atualizado às ${horaFormatada}`;
         }
         function renderizarTabelaLiberacao() {
             const headRow = elementos.tabelaLiberacaoHead;
@@ -5961,7 +5376,7 @@
             }
             tbody.innerHTML = '';
             if (!linhas.length) {
-                mostrarEstadoTabelaLiberacao(construirMensagemSemResultados(estadoLiberacao.filtros));
+                mostrarEstadoTabelaLiberacao('Nenhum registro encontrado para a data selecionada.');
                 return;
             }
             const fragmentBody = document.createDocumentFragment();
@@ -5979,40 +5394,36 @@
             tbody.appendChild(fragmentBody);
         }
         async function carregarTabelaLiberacao(opcoes = {}) {
-            if (!elementos.tabelaLiberacao) return;
+            const tabela = elementos.tabelaLiberacao;
+            if (!tabela) return;
             const estadoLiberacao = obterEstadoLiberacao();
-            const { forcarAtualizacao = false } = opcoes;
-            const filtrosAtuais = estadoLiberacao.filtros || criarFiltrosLiberacaoPadrao();
-            aplicarFiltrosLiberacaoNosInputs(filtrosAtuais);
-
-            const parametros = montarParametrosLiberacao(filtrosAtuais);
-            const chaveFiltrosAtual = JSON.stringify(parametros);
-
-            if (!forcarAtualizacao && estadoLiberacao.linhasCarregadas && estadoLiberacao.ultimaChaveFiltros === chaveFiltrosAtual) {
+            const { dataSelecionada, forcarAtualizacao = false } = opcoes;
+            const dataPadrao = obterDataHoraLocalPadrao().data;
+            const dataFiltroIso = converterDataTextoParaISO(dataSelecionada || elementos.liberacaoData?.value || estadoLiberacao.dataSelecionada || dataPadrao);
+            if (!dataFiltroIso) {
+                mostrarEstadoTabelaLiberacao('Informe uma data válida para realizar a busca.', 'error');
+                estadoLiberacao.erro = 'Informe uma data válida para realizar a busca.';
                 atualizarResumoLiberacao();
-                if (estadoLiberacao.linhas.length) {
-                    renderizarTabelaLiberacao();
-                } else {
-                    mostrarEstadoTabelaLiberacao(construirMensagemSemResultados(filtrosAtuais));
-                }
                 return;
             }
-
-            estadoLiberacao.ultimaChaveFiltros = chaveFiltrosAtual;
+            if (elementos.liberacaoData && elementos.liberacaoData.value !== dataFiltroIso) {
+                elementos.liberacaoData.value = dataFiltroIso;
+            }
+            if (!forcarAtualizacao && estadoLiberacao.linhasCarregadas && estadoLiberacao.dataSelecionada === dataFiltroIso) {
+                atualizarResumoLiberacao();
+                renderizarTabelaLiberacao();
+                return;
+            }
             estadoLiberacao.carregando = true;
             estadoLiberacao.erro = '';
+            estadoLiberacao.dataSelecionada = dataFiltroIso;
             atualizarResumoLiberacao();
             mostrarEstadoTabelaLiberacao('Carregando registros...', 'loading');
-
             try {
-                const resultado = await callGoogleScript('getPlanilhaLiberacao', parametros);
+                const resultado = await callGoogleScript('getPlanilhaLiberacao', { data: dataFiltroIso });
                 if (!resultado.success) {
-                    const erro = new Error(resultado.error || 'Não foi possível carregar os registros de liberação.');
-                    erro.code = resultado.errorCode || '';
-                    erro.notificado = Boolean(resultado._erroNotificado);
-                    throw erro;
+                    throw new Error(resultado.error || 'Falha ao obter dados.');
                 }
-
                 estadoLiberacao.colunas = Array.isArray(resultado.columns) ? resultado.columns : [];
                 estadoLiberacao.linhas = Array.isArray(resultado.rows) ? resultado.rows : [];
                 estadoLiberacao.totalPlanilha = Number(resultado.totalPlanilha) || estadoLiberacao.linhas.length;
@@ -6020,73 +5431,16 @@
                 estadoLiberacao.ultimaAtualizacao = Date.now();
                 estadoLiberacao.linhasCarregadas = true;
                 estadoLiberacao.erro = '';
-
-                if (resultado.filtro && typeof resultado.filtro === 'object') {
-                    const filtrosNormalizados = {
-                        ...criarFiltrosLiberacaoPadrao(),
-                        ...estadoLiberacao.filtros
-                    };
-                    if (resultado.filtro.dataInicio) {
-                        const inicio = converterDataTextoParaISO(resultado.filtro.dataInicio);
-                        if (inicio) filtrosNormalizados.dataInicio = inicio;
-                    }
-                    if (resultado.filtro.dataFim) {
-                        const fim = converterDataTextoParaISO(resultado.filtro.dataFim);
-                        if (fim) filtrosNormalizados.dataFim = fim;
-                    }
-                    if (Array.isArray(resultado.filtro.datasSelecionadas)) {
-                        filtrosNormalizados.datasSelecionadas = resultado.filtro.datasSelecionadas
-                            .map(valor => converterDataTextoParaISO(valor))
-                            .filter(Boolean)
-                            .sort();
-                    }
-                    if (typeof resultado.filtro.prontuario === 'string') {
-                        filtrosNormalizados.prontuario = sanitizarTextoFiltro(resultado.filtro.prontuario);
-                    }
-                    if (typeof resultado.filtro.paciente === 'string') {
-                        filtrosNormalizados.paciente = sanitizarTextoFiltro(resultado.filtro.paciente);
-                    }
-                    if (Array.isArray(resultado.filtro.situacoes)) {
-                        const vistos = new Set();
-                        const lista = [];
-                        resultado.filtro.situacoes.forEach(valor => {
-                            const texto = sanitizarTextoFiltro(valor, 80);
-                            const chave = normalizarTexto(texto);
-                            if (!texto || vistos.has(chave)) {
-                                return;
-                            }
-                            vistos.add(chave);
-                            lista.push(texto);
-                        });
-                        filtrosNormalizados.situacoes = lista;
-                    }
-                    estadoLiberacao.filtros = filtrosNormalizados;
-                    estadoLiberacao.dataSelecionada = filtrosNormalizados.dataInicio;
-                }
-
-                estadoLiberacao.sugestoes = normalizarSugestoesLiberacao(resultado.suggestions);
-                atualizarSugestoesLiberacao();
-                aplicarFiltrosLiberacaoNosInputs(estadoLiberacao.filtros);
-
-                if (!estadoLiberacao.linhas.length) {
-                    mostrarEstadoTabelaLiberacao(construirMensagemSemResultados(estadoLiberacao.filtros));
-                } else {
-                    renderizarTabelaLiberacao();
-                }
+                renderizarTabelaLiberacao();
             } catch (erro) {
                 console.error('Erro ao carregar dados de liberação:', erro);
-                estadoLiberacao.erro = erro.code === 'VALIDATION'
-                    ? (erro.message || 'Filtros inválidos. Ajuste os filtros e tente novamente.')
-                    : (erro.message || 'Não foi possível carregar os registros de liberação.');
+                estadoLiberacao.erro = 'Não foi possível carregar os registros de liberação.';
                 estadoLiberacao.linhas = [];
                 estadoLiberacao.linhasCarregadas = false;
                 estadoLiberacao.totalPlanilha = 0;
                 estadoLiberacao.totalFiltrado = 0;
-                estadoLiberacao.ultimaChaveFiltros = '';
-                mostrarEstadoTabelaLiberacao(estadoLiberacao.erro, 'error');
-                if (!erro.notificado && erro.code !== 'VALIDATION') {
-                    mostrarErro('Não foi possível carregar os registros de liberação.');
-                }
+                mostrarEstadoTabelaLiberacao('Não foi possível carregar os registros de liberação.', 'error');
+                mostrarErro('Não foi possível carregar os registros de liberação.');
             } finally {
                 estadoLiberacao.carregando = false;
                 atualizarResumoLiberacao();
