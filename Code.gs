@@ -240,6 +240,115 @@ function normalizarListaUnidadesParametro(valor) {
   return [];
 }
 
+function sanitizarTextoFiltroBasico(valor, limite) {
+  if (valor === null || valor === undefined) {
+    return '';
+  }
+
+  var texto = valor.toString().replace(/[<>]/g, '').replace(/[\u0000-\u001F\u007F]/g, '').trim();
+  if (limite && texto.length > limite) {
+    texto = texto.slice(0, limite);
+  }
+  return texto;
+}
+
+function interpretarListaTextoFiltro(parametro, limite) {
+  if (parametro === null || parametro === undefined) {
+    return [];
+  }
+
+  var bruto;
+  if (Array.isArray(parametro)) {
+    bruto = parametro;
+  } else if (typeof parametro === 'string') {
+    var texto = parametro.trim();
+    if (!texto) {
+      return [];
+    }
+
+    if ((texto.charAt(0) === '[' && texto.charAt(texto.length - 1) === ']') ||
+        (texto.charAt(0) === '{' && texto.charAt(texto.length - 1) === '}')) {
+      try {
+        var convertido = JSON.parse(texto);
+        if (Array.isArray(convertido)) {
+          bruto = convertido;
+        } else {
+          bruto = [convertido];
+        }
+      } catch (erroJSON) {
+        bruto = texto.split(/[,;\n]+/);
+      }
+    } else if (texto.indexOf(',') !== -1 || texto.indexOf(';') !== -1 || texto.indexOf('\n') !== -1) {
+      bruto = texto.split(/[,;\n]+/);
+    } else {
+      bruto = [texto];
+    }
+  } else {
+    bruto = [parametro];
+  }
+
+  var resultado = [];
+  var vistos = {};
+  (Array.isArray(bruto) ? bruto : []).forEach(function(item) {
+    var textoItem = sanitizarTextoFiltroBasico(item, limite);
+    var chave = normalizarTextoBasico(textoItem);
+    if (!textoItem || vistos[chave]) {
+      return;
+    }
+    vistos[chave] = true;
+    resultado.push(textoItem);
+  });
+  return resultado;
+}
+
+function interpretarListaDatasFiltro(parametro, timezone) {
+  if (parametro === null || parametro === undefined) {
+    return [];
+  }
+
+  var valores;
+  if (Array.isArray(parametro)) {
+    valores = parametro;
+  } else if (typeof parametro === 'string') {
+    var texto = parametro.trim();
+    if (!texto) {
+      return [];
+    }
+
+    if ((texto.charAt(0) === '[' && texto.charAt(texto.length - 1) === ']') ||
+        (texto.charAt(0) === '{' && texto.charAt(texto.length - 1) === '}')) {
+      try {
+        var convertido = JSON.parse(texto);
+        valores = Array.isArray(convertido) ? convertido : [convertido];
+      } catch (erroJSON) {
+        valores = texto.split(/[,;\n]+/);
+      }
+    } else {
+      valores = texto.split(/[,;\n]+/);
+    }
+  } else {
+    valores = [parametro];
+  }
+
+  var tz = timezone || obterTimeZoneAplicacao();
+  var vistos = {};
+  var lista = [];
+  (Array.isArray(valores) ? valores : []).forEach(function(item) {
+    var data = interpretarDataParametroSeguro(item, tz);
+    if (!data) {
+      return;
+    }
+    var iso = Utilities.formatDate(data, tz, 'yyyy-MM-dd');
+    if (!vistos[iso]) {
+      vistos[iso] = true;
+      lista.push(iso);
+    }
+  });
+
+  lista.sort();
+  return lista;
+}
+
 function obterTimeZoneAplicacao() {
   var timezone = '';
   try {
@@ -2300,13 +2409,62 @@ function getPlanilhaLiberacao(parametros) {
   var timezone = obterTimeZoneAplicacao();
 
   try {
-    var dataParametro = parametros && parametros.data !== undefined ? parametros.data : '';
-    var dataFiltro = interpretarDataParametroSeguro(dataParametro, timezone) || obterDataAtualNormalizada(timezone);
-    if (!dataFiltro) {
-      dataFiltro = obterDataAtualNormalizada(timezone);
+    parametros = parametros || {};
+
+    var dataInicio = interpretarDataParametroSeguro(
+      parametros.dataInicio !== undefined ? parametros.dataInicio :
+      parametros.dataInicial !== undefined ? parametros.dataInicial :
+      parametros.data !== undefined ? parametros.data : '',
+      timezone
+    );
+
+    var dataFim = interpretarDataParametroSeguro(
+      parametros.dataFim !== undefined ? parametros.dataFim :
+      parametros.dataFinal !== undefined ? parametros.dataFinal :
+      parametros.data !== undefined ? parametros.data : '',
+      timezone
+    );
+
+    if (dataInicio && !dataFim) {
+      dataFim = dataInicio;
+    } else if (!dataInicio && dataFim) {
+      dataInicio = dataFim;
     }
 
-    var dataFiltroChave = gerarChaveDataComparacao(dataFiltro, timezone);
+    if (!dataInicio && !dataFim) {
+      var hoje = obterDataAtualNormalizada(timezone);
+      dataInicio = hoje;
+      dataFim = hoje;
+    }
+
+    if (dataInicio && dataFim && dataInicio.getTime() > dataFim.getTime()) {
+      return { success: false, error: 'Intervalo de datas inválido.', errorCode: 'VALIDATION' };
+    }
+
+    var datasSelecionadas = interpretarListaDatasFiltro(parametros.datasSelecionadas || parametros.datas || '', timezone);
+    var prontuarioFiltro = sanitizarTextoFiltroBasico(parametros.prontuario, 120);
+    var pacienteFiltro = sanitizarTextoFiltroBasico(parametros.paciente, 120);
+    var situacoesFiltro = interpretarListaTextoFiltro(parametros.situacoes || parametros.situacao, 80);
+
+    var prontuarioFiltroNormalizado = normalizarTextoBasico(prontuarioFiltro);
+    var pacienteFiltroNormalizado = normalizarTextoBasico(pacienteFiltro);
+    var situacoesFiltroSet = {};
+    if (situacoesFiltro.length) {
+      situacoesFiltro.forEach(function(valor) {
+        var chaveSituacao = normalizarTextoBasico(valor);
+        if (chaveSituacao) {
+          situacoesFiltroSet[chaveSituacao] = true;
+        }
+      });
+    }
+
+    var chaveInicio = dataInicio ? gerarChaveDataComparacao(dataInicio, timezone) : '';
+    var chaveFim = dataFim ? gerarChaveDataComparacao(dataFim, timezone) : '';
+    var possuiIntervalo = Boolean(chaveInicio && chaveFim);
+    var datasSelecionadasChaves = {};
+    datasSelecionadas.forEach(function(iso) {
+      datasSelecionadasChaves[iso.replace(/-/g, '')] = true;
+    });
 
     var spreadsheet;
     try {
@@ -2331,9 +2489,36 @@ function getPlanilhaLiberacao(parametros) {
       return valor === null || valor === undefined ? '' : valor;
     });
 
+    var mapaCabecalhos = {};
+    cabecalhos.forEach(function(valor, indice) {
+      var chave = normalizarTextoBasico(valor);
+      if (chave && mapaCabecalhos[chave] === undefined) {
+        mapaCabecalhos[chave] = indice;
+      }
+    });
+
+    function obterIndiceCabecalhoFlexivel(chaves) {
+      for (var j = 0; j < chaves.length; j++) {
+        var chaveFlex = normalizarTextoBasico(chaves[j]);
+        if (chaveFlex && mapaCabecalhos.hasOwnProperty(chaveFlex)) {
+          return mapaCabecalhos[chaveFlex];
+        }
+      }
+      return -1;
+    }
+
+    var indiceProntuario = obterIndiceCabecalhoFlexivel(['prontuario', 'prontuarios', 'prontuario paciente', 'prontuário']);
+    var indicePaciente = obterIndiceCabecalhoFlexivel(['paciente', 'nome paciente', 'paciente nome']);
+    var indiceSituacao = obterIndiceCabecalhoFlexivel(['situacao', 'situação', 'status', 'status liberacao', 'status liberação']);
+
     var totalLinhasDados = Math.max(sheet.getLastRow() - PLANILHA_LIBERACAO_LINHA_CABECALHO, 0);
     var linhasFiltradas = [];
     var totalPlanilha = totalLinhasDados;
+
+    var sugestoesProntuario = {};
+    var sugestoesPaciente = {};
+    var sugestoesSituacao = {};
+    var sugestoesDatas = {};
 
     if (totalLinhasDados > 0) {
       var rangeDados = sheet.getRange(PLANILHA_LIBERACAO_LINHA_CABECALHO + 1, 1, totalLinhasDados, totalColunas);
@@ -2351,29 +2536,113 @@ function getPlanilhaLiberacao(parametros) {
           continue;
         }
 
+        var valorProntuarioLinha = indiceProntuario >= 0 && indiceProntuario < linhaExibicao.length ? linhaExibicao[indiceProntuario] : '';
+        var valorPacienteLinha = indicePaciente >= 0 && indicePaciente < linhaExibicao.length ? linhaExibicao[indicePaciente] : '';
+        var valorSituacaoLinha = indiceSituacao >= 0 && indiceSituacao < linhaExibicao.length ? linhaExibicao[indiceSituacao] : '';
+
+        var prontuarioTexto = valorProntuarioLinha === null || valorProntuarioLinha === undefined ? '' : valorProntuarioLinha.toString().trim();
+        var pacienteTexto = valorPacienteLinha === null || valorPacienteLinha === undefined ? '' : valorPacienteLinha.toString().trim();
+        var situacaoTexto = valorSituacaoLinha === null || valorSituacaoLinha === undefined ? '' : valorSituacaoLinha.toString().trim();
+
+        if (prontuarioTexto) {
+          var chaveProntuario = normalizarTextoBasico(prontuarioTexto);
+          if (!sugestoesProntuario[chaveProntuario]) {
+            sugestoesProntuario[chaveProntuario] = sanitizarTextoFiltroBasico(prontuarioTexto, 120);
+          }
+        }
+
+        if (pacienteTexto) {
+          var chavePaciente = normalizarTextoBasico(pacienteTexto);
+          if (!sugestoesPaciente[chavePaciente]) {
+            sugestoesPaciente[chavePaciente] = sanitizarTextoFiltroBasico(pacienteTexto, 160);
+          }
+        }
+
+        if (situacaoTexto) {
+          var chaveSituacao = normalizarTextoBasico(situacaoTexto);
+          if (chaveSituacao && !sugestoesSituacao[chaveSituacao]) {
+            sugestoesSituacao[chaveSituacao] = sanitizarTextoFiltroBasico(situacaoTexto, 80);
+          }
+        }
+
         var valorData = linhaBruta[PLANILHA_LIBERACAO_COLUNA_DATA - 1];
         var exibicaoData = linhaExibicao[PLANILHA_LIBERACAO_COLUNA_DATA - 1];
         var dataLinha = extrairDataValidaDaCelula(valorData, exibicaoData, timezone);
-        var chaveLinha = gerarChaveDataComparacao(dataLinha, timezone);
+        var chaveLinha = dataLinha ? gerarChaveDataComparacao(dataLinha, timezone) : '';
 
-        if (chaveLinha && chaveLinha === dataFiltroChave) {
-          linhasFiltradas.push(linhaExibicao.map(function(celula) {
-            return celula === null || celula === undefined ? '' : celula;
-          }));
+        if (dataLinha) {
+          var isoLinha = Utilities.formatDate(dataLinha, timezone, 'yyyy-MM-dd');
+          if (!sugestoesDatas[isoLinha]) {
+            sugestoesDatas[isoLinha] = isoLinha;
+          }
         }
+
+        if (prontuarioFiltroNormalizado && (!prontuarioTexto || normalizarTextoBasico(prontuarioTexto).indexOf(prontuarioFiltroNormalizado) === -1)) {
+          continue;
+        }
+
+        if (pacienteFiltroNormalizado && (!pacienteTexto || normalizarTextoBasico(pacienteTexto).indexOf(pacienteFiltroNormalizado) === -1)) {
+          continue;
+        }
+
+        if (Object.keys(situacoesFiltroSet).length) {
+          var situacaoNormalizada = normalizarTextoBasico(situacaoTexto);
+          if (!situacaoNormalizada || !situacoesFiltroSet[situacaoNormalizada]) {
+            continue;
+          }
+        }
+
+        var possuiDatasExtras = datasSelecionadas.length > 0;
+        var estaNoIntervalo = !possuiIntervalo || (chaveLinha && chaveLinha >= chaveInicio && chaveLinha <= chaveFim);
+        var estaNasExtras = possuiDatasExtras && chaveLinha ? Boolean(datasSelecionadasChaves[chaveLinha]) : false;
+        var incluirLinha;
+
+        if (possuiIntervalo && possuiDatasExtras) {
+          incluirLinha = (estaNoIntervalo || estaNasExtras);
+        } else if (possuiDatasExtras) {
+          incluirLinha = estaNasExtras;
+        } else if (possuiIntervalo) {
+          incluirLinha = estaNoIntervalo;
+        } else {
+          incluirLinha = true;
+        }
+
+        if (!incluirLinha) {
+          continue;
+        }
+
+        linhasFiltradas.push(linhaExibicao.map(function(celula) {
+          return celula === null || celula === undefined ? '' : celula;
+        }));
       }
     }
+
+    var sugestoesResposta = {
+      prontuarios: Object.keys(sugestoesProntuario).map(function(chave) { return sugestoesProntuario[chave]; }).sort(),
+      pacientes: Object.keys(sugestoesPaciente).map(function(chave) { return sugestoesPaciente[chave]; }).sort(),
+      situacoes: Object.keys(sugestoesSituacao).map(function(chave) { return sugestoesSituacao[chave]; }).sort(),
+      datas: Object.keys(sugestoesDatas).sort().map(function(iso) {
+        var dataObj = interpretarDataParametroSeguro(iso, timezone);
+        var label = dataObj ? Utilities.formatDate(dataObj, timezone, 'dd/MM/yyyy') : iso;
+        return { value: iso, label: label };
+      })
+    };
 
     return {
       success: true,
       columns: cabecalhos,
       rows: linhasFiltradas,
       filtro: {
-        data: Utilities.formatDate(dataFiltro, timezone, 'yyyy-MM-dd'),
-        dataFormatada: Utilities.formatDate(dataFiltro, timezone, 'dd/MM/yyyy')
+        dataInicio: dataInicio ? Utilities.formatDate(dataInicio, timezone, 'yyyy-MM-dd') : '',
+        dataFim: dataFim ? Utilities.formatDate(dataFim, timezone, 'yyyy-MM-dd') : '',
+        datasSelecionadas: datasSelecionadas,
+        prontuario: prontuarioFiltro,
+        paciente: pacienteFiltro,
+        situacoes: situacoesFiltro
       },
       totalPlanilha: totalPlanilha,
-      totalFiltrado: linhasFiltradas.length
+      totalFiltrado: linhasFiltradas.length,
+      suggestions: sugestoesResposta
     };
 
   } catch (erro) {
