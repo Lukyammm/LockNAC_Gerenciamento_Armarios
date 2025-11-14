@@ -2346,6 +2346,27 @@ function getPlanilhaLiberacao(parametros) {
 
     var pacienteFiltroNormalizado = normalizarTextoBasico(pacienteFiltroTexto);
     var prontuarioFiltroNormalizado = normalizarTextoBasico(prontuarioFiltroTexto);
+    var tokensPacienteFiltro = pacienteFiltroNormalizado
+      ? pacienteFiltroNormalizado.split(/\s+/).filter(function(token) { return token; })
+      : [];
+    var tokensProntuarioFiltro = prontuarioFiltroNormalizado
+      ? prontuarioFiltroNormalizado.split(/\s+/).filter(function(token) { return token; })
+      : [];
+
+    function contemTodosTokens(textoNormalizado, tokens) {
+      if (!tokens.length) {
+        return true;
+      }
+      if (!textoNormalizado) {
+        return false;
+      }
+      for (var i = 0; i < tokens.length; i++) {
+        if (textoNormalizado.indexOf(tokens[i]) === -1) {
+          return false;
+        }
+      }
+      return true;
+    }
 
     var spreadsheet;
     try {
@@ -2432,11 +2453,13 @@ function getPlanilhaLiberacao(parametros) {
           ? linhaExibicao[indiceProntuario]
           : '';
 
-        if (pacienteFiltroNormalizado && normalizarTextoBasico(valorPaciente).indexOf(pacienteFiltroNormalizado) === -1) {
+        var pacienteNormalizadoLinha = normalizarTextoBasico(valorPaciente);
+        if (!contemTodosTokens(pacienteNormalizadoLinha, tokensPacienteFiltro)) {
           continue;
         }
 
-        if (prontuarioFiltroNormalizado && normalizarTextoBasico(valorProntuario).indexOf(prontuarioFiltroNormalizado) === -1) {
+        var prontuarioNormalizadoLinha = normalizarTextoBasico(valorProntuario);
+        if (!contemTodosTokens(prontuarioNormalizadoLinha, tokensProntuarioFiltro)) {
           continue;
         }
 
