@@ -203,6 +203,8 @@
             padding: 15px 0;
             margin-bottom: 20px;
             border-bottom: 1px solid color-mix(in srgb, var(--dark-color) 8%, transparent);
+            flex-wrap: wrap;
+            gap: 16px;
         }
         .header-title h1 {
             font-size: 1.8rem;
@@ -212,17 +214,22 @@
             display: flex;
             align-items: center;
             gap: 20px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            flex: 1 1 360px;
         }
         .header-selectors {
             display: flex;
             align-items: flex-end;
             gap: 15px;
             flex-wrap: wrap;
+            flex: 1 1 100%;
         }
         .selector-group {
             display: flex;
             flex-direction: column;
             gap: 4px;
+            flex: 1 1 220px;
         }
         .selector-group label {
             font-size: 0.75rem;
@@ -240,10 +247,11 @@
             border-radius: 14px;
             border: 1px solid var(--border-color);
             background: linear-gradient(135deg, var(--surface-color) 0%, color-mix(in srgb, var(--primary-color) 6%, white 94%) 100%);
-            min-width: 220px;
             box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
             transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
             isolation: isolate;
+            width: 100%;
+            min-width: 0;
         }
         .selector-control:hover {
             border-color: color-mix(in srgb, var(--primary-color) 60%, white 40%);
@@ -2105,11 +2113,6 @@
             .table-header-controls input[type="text"] {
                 width: 100%;
             }
-        }
-        @media (max-width: 576px) {
-            .cards-hero {
-                grid-template-columns: 1fr;
-            }
             .header {
                 flex-direction: column;
                 align-items: stretch;
@@ -2135,7 +2138,6 @@
             }
             .selector-control {
                 width: 100%;
-                min-width: 0;
             }
             .selector-control .selector-dropdown {
                 left: 0;
@@ -2157,6 +2159,14 @@
             .user-profile {
                 width: 100%;
                 justify-content: space-between;
+            }
+        }
+        @media (max-width: 576px) {
+            .cards-hero {
+                grid-template-columns: 1fr;
+            }
+            .table-header-controls button {
+                width: 100%;
             }
         }
     </style>
