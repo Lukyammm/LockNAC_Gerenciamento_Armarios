@@ -48,6 +48,17 @@
             box-sizing: border-box;
             font-family: var(--font-family);
         }
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
         body {
             background-color: var(--bg-color);
             color: var(--text-color);
@@ -203,7 +214,6 @@
             padding: 15px 0;
             margin-bottom: 20px;
             border-bottom: 1px solid color-mix(in srgb, var(--dark-color) 8%, transparent);
-            flex-wrap: wrap;
             gap: 16px;
         }
         .header-title h1 {
@@ -213,30 +223,21 @@
         .header-actions {
             display: flex;
             align-items: center;
-            gap: 20px;
-            flex-wrap: wrap;
             justify-content: flex-end;
-            flex: 1 1 360px;
+            flex: 1;
         }
-        .header-selectors {
+        .header-quick-actions {
             display: flex;
-            align-items: flex-end;
-            gap: 15px;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 16px;
             flex-wrap: wrap;
-            flex: 1 1 100%;
         }
         .selector-group {
             display: flex;
             flex-direction: column;
             gap: 4px;
             flex: 1 1 220px;
-        }
-        .selector-group label {
-            font-size: 0.75rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: var(--muted-color);
         }
         .selector-control {
             position: relative;
@@ -262,6 +263,41 @@
         .selector-control:focus-within {
             border-color: var(--primary-color);
             box-shadow: 0 0 0 4px var(--focus-ring);
+        }
+        .selector-control.compact-selector {
+            width: auto;
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: var(--surface-color);
+            border: 1px solid color-mix(in srgb, var(--dark-color) 6%, transparent);
+            box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
+            min-width: unset;
+            gap: 0;
+        }
+        .selector-control.compact-selector .selector-icon {
+            margin: 0;
+            font-size: 1.2rem;
+        }
+        .selector-control.compact-selector .selector-trigger {
+            padding: 0;
+            min-width: 0;
+        }
+        .selector-control.compact-selector .selector-trigger-text,
+        .selector-control.compact-selector .selector-arrow {
+            display: none;
+        }
+        .selector-control.compact-selector .selector-dropdown {
+            left: auto;
+            right: 0;
+            transform: translateY(-8px);
+            width: max(280px, 100%);
+            min-width: 280px;
+        }
+        .selector-control.compact-selector .selector-dropdown::before,
+        .selector-control.compact-selector .selector-dropdown::after {
+            left: auto;
+            right: 20px;
+            transform: none;
         }
         .selector-icon {
             color: var(--primary-color);
@@ -478,6 +514,23 @@
             cursor: pointer;
             font-size: 1.2rem;
             color: var(--dark-color);
+            width: 46px;
+            height: 46px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--border-color);
+            background: var(--surface-color);
+            box-shadow: 0 10px 20px rgba(15, 23, 42, 0.08);
+            transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+        }
+        .notification-bell:hover,
+        .notification-bell:focus-visible {
+            border-color: var(--primary-color);
+            box-shadow: 0 12px 26px rgba(15, 23, 42, 0.12);
+            outline: none;
+            transform: translateY(-1px);
         }
         .notification-badge {
             position: absolute;
@@ -554,11 +607,15 @@
             border-radius: 999px;
             padding: 6px 10px;
             transition: background-color 0.2s ease, box-shadow 0.2s ease;
+            border: 1px solid transparent;
+            background: var(--surface-color);
+            box-shadow: 0 10px 20px rgba(15, 23, 42, 0.08);
         }
         .user-profile:focus-visible,
         .user-profile:hover {
             background-color: color-mix(in srgb, var(--light-color) 78%, white 22%);
             box-shadow: 0 0 0 3px var(--focus-ring);
+            border-color: color-mix(in srgb, var(--primary-color) 26%, transparent);
             outline: none;
         }
         .user-avatar {
@@ -2120,18 +2177,15 @@
             }
             .header-actions {
                 width: 100%;
-                flex-direction: column;
-                align-items: stretch;
+                justify-content: flex-start;
+            }
+            .header-quick-actions {
+                width: 100%;
+                justify-content: flex-start;
                 gap: 12px;
             }
             .table-header-controls button {
                 width: 100%;
-            }
-            .header-selectors {
-                width: 100%;
-                flex-direction: column;
-                align-items: stretch;
-                gap: 10px;
             }
             .selector-group {
                 width: 100%;
@@ -2234,53 +2288,47 @@
                 <h1>Dashboard</h1>
             </div>
             <div class="header-actions">
-                <div class="header-selectors">
-                    <div class="selector-group">
-                        <label for="profile-select">Perfil</label>
-                        <div class="selector-control" data-selector>
-                            <i class="fas fa-users selector-icon" aria-hidden="true"></i>
-                            <button type="button" class="selector-trigger" id="profile-select-trigger" aria-haspopup="listbox" aria-expanded="false">
-                                <div class="selector-trigger-text">
-                                    <span class="selector-trigger-label">Perfil geral</span>
-                                    <span class="selector-trigger-description">Visão consolidada do atendimento</span>
-                                </div>
-                                <span class="selector-arrow" aria-hidden="true"><i class="fas fa-angle-down"></i></span>
-                            </button>
-                            <div class="selector-dropdown" role="listbox" aria-labelledby="profile-select-trigger"></div>
-                            <select id="profile-select" class="selector-input" aria-hidden="true" tabindex="-1">
-                                <option value="geral" selected data-icon="fas fa-chart-line" data-description="Visão consolidada do atendimento">Perfil geral</option>
-                                <option value="visitante" data-icon="fas fa-id-badge" data-description="Gestão completa dos visitantes">Visitantes</option>
-                                <option value="acompanhante" data-icon="fas fa-people-roof" data-description="Acompanhamento dedicado aos pacientes">Acompanhantes</option>
-                            </select>
-                        </div>
+                <div class="header-quick-actions">
+                    <div class="selector-control compact-selector" data-selector>
+                        <i class="fas fa-users selector-icon" aria-hidden="true"></i>
+                        <button type="button" class="selector-trigger" id="profile-select-trigger" aria-haspopup="listbox" aria-expanded="false" aria-label="Selecionar perfil" title="Selecionar perfil" data-default-label="Selecionar perfil">
+                            <div class="selector-trigger-text sr-only">
+                                <span class="selector-trigger-label">Perfil geral</span>
+                                <span class="selector-trigger-description">Visão consolidada do atendimento</span>
+                            </div>
+                            <span class="selector-arrow" aria-hidden="true"><i class="fas fa-angle-down"></i></span>
+                        </button>
+                        <div class="selector-dropdown" role="listbox" aria-labelledby="profile-select-trigger"></div>
+                        <select id="profile-select" class="selector-input" aria-hidden="true" tabindex="-1">
+                            <option value="geral" selected data-icon="fas fa-chart-line" data-description="Visão consolidada do atendimento">Perfil geral</option>
+                            <option value="visitante" data-icon="fas fa-id-badge" data-description="Gestão completa dos visitantes">Visitantes</option>
+                            <option value="acompanhante" data-icon="fas fa-people-roof" data-description="Acompanhamento dedicado aos pacientes">Acompanhantes</option>
+                        </select>
                     </div>
-                    <div class="selector-group">
-                        <label for="unit-select">Unidade</label>
-                        <div class="selector-control" data-selector>
-                            <i class="fas fa-building selector-icon" aria-hidden="true"></i>
-                            <button type="button" class="selector-trigger" id="unit-select-trigger" aria-haspopup="listbox" aria-expanded="false">
-                                <div class="selector-trigger-text">
-                                    <span class="selector-trigger-label">Todas as unidades</span>
-                                    <span class="selector-trigger-description">Visualização geral por setor</span>
-                                </div>
-                                <span class="selector-arrow" aria-hidden="true"><i class="fas fa-angle-down"></i></span>
-                            </button>
-                            <div class="selector-dropdown" role="listbox" aria-labelledby="unit-select-trigger"></div>
-                            <select id="unit-select" class="selector-input" aria-hidden="true" tabindex="-1">
-                                <option value="todas" data-icon="fas fa-layer-group" data-description="Visualização geral por setor">Todas as unidades</option>
-                            </select>
-                        </div>
+                    <div class="selector-control compact-selector" data-selector>
+                        <i class="fas fa-building selector-icon" aria-hidden="true"></i>
+                        <button type="button" class="selector-trigger" id="unit-select-trigger" aria-haspopup="listbox" aria-expanded="false" aria-label="Selecionar unidade" title="Selecionar unidade" data-default-label="Selecionar unidade">
+                            <div class="selector-trigger-text sr-only">
+                                <span class="selector-trigger-label">Todas as unidades</span>
+                                <span class="selector-trigger-description">Visualização geral por setor</span>
+                            </div>
+                            <span class="selector-arrow" aria-hidden="true"><i class="fas fa-angle-down"></i></span>
+                        </button>
+                        <div class="selector-dropdown" role="listbox" aria-labelledby="unit-select-trigger"></div>
+                        <select id="unit-select" class="selector-input" aria-hidden="true" tabindex="-1">
+                            <option value="todas" data-icon="fas fa-layer-group" data-description="Visualização geral por setor">Todas as unidades</option>
+                        </select>
                     </div>
-                </div>
-                <div class="notification-bell" id="notification-bell">
-                    <i class="fas fa-bell"></i>
-                    <span class="notification-badge">0</span>
-                </div>
-                <div class="user-profile" id="header-user-profile" role="button" tabindex="0" aria-haspopup="dialog" aria-controls="avatar-modal" aria-expanded="false">
-                    <div class="user-avatar" id="header-user-avatar">--</div>
-                    <div class="user-details">
-                        <strong id="header-user-name">Usuário</strong>
-                        <span id="header-user-role">Perfil geral</span>
+                    <div class="notification-bell" id="notification-bell" tabindex="0" role="button" aria-label="Notificações">
+                        <i class="fas fa-bell" aria-hidden="true"></i>
+                        <span class="notification-badge">0</span>
+                    </div>
+                    <div class="user-profile" id="header-user-profile" role="button" tabindex="0" aria-haspopup="dialog" aria-controls="avatar-modal" aria-expanded="false">
+                        <div class="user-avatar" id="header-user-avatar">--</div>
+                        <div class="user-details">
+                            <strong id="header-user-name">Usuário</strong>
+                            <span id="header-user-role">Perfil geral</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -3568,7 +3616,7 @@
             sincronizarTriggerComSelect(instance);
         }
         function sincronizarTriggerComSelect(instance) {
-            const { select, labelEl, descriptionEl, optionButtons } = instance;
+            const { select, labelEl, descriptionEl, optionButtons, trigger } = instance;
             const selectedOption = select.options[select.selectedIndex];
             const labelTexto = selectedOption ? selectedOption.textContent : 'Selecionar';
             if (labelEl) labelEl.textContent = labelTexto;
@@ -3576,6 +3624,12 @@
                 const descricao = selectedOption?.dataset?.description || '';
                 descriptionEl.textContent = descricao;
                 descriptionEl.hidden = !descricao;
+            }
+            if (trigger) {
+                const baseLabel = trigger.dataset?.defaultLabel || 'Selecionar opção';
+                const labelCompleto = `${baseLabel}: ${labelTexto}`;
+                trigger.setAttribute('aria-label', labelCompleto);
+                trigger.setAttribute('title', labelCompleto);
             }
             optionButtons.forEach((button, value) => {
                 const isSelected = selectedOption && value === selectedOption.value;
