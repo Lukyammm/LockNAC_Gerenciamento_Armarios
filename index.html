@@ -33,10 +33,12 @@
             /* Misc */
             --focus-ring: rgba(59, 130, 246, 0.25);
             --sidebar-width: 250px;
-            --em-uso-border-color: color-mix(in srgb, var(--primary-dark) 82%, black 18%);
-            --em-uso-card-bg: color-mix(in srgb, var(--primary-color) 88%, black 12%);
-            --em-uso-badge-bg: color-mix(in srgb, var(--primary-color) 18%, white 82%);
-            --em-uso-badge-text: color-mix(in srgb, var(--primary-color) 92%, black 8%);
+            --em-uso-base: #b9c6da;
+            --em-uso-border-color: color-mix(in srgb, var(--em-uso-base) 70%, black 30%);
+            --em-uso-card-bg: var(--em-uso-base);
+            --em-uso-badge-bg: color-mix(in srgb, var(--em-uso-base) 55%, white 45%);
+            --em-uso-badge-text: color-mix(in srgb, var(--em-uso-base) 10%, black 90%);
+            --em-uso-text: color-mix(in srgb, var(--em-uso-base) 8%, black 92%);
             --extended-badge-bg: color-mix(in srgb, var(--primary-color) 14%, white 86%);
             --extended-badge-text: color-mix(in srgb, var(--primary-color) 80%, black 20%);
             --extended-row-bg: color-mix(in srgb, var(--primary-color) 10%, white 90%);
@@ -996,7 +998,7 @@
         .card.em-uso {
             border-top: 4px solid var(--em-uso-border-color);
             background: var(--em-uso-card-bg);
-            color: var(--light-color);
+            color: var(--em-uso-text);
         }
         .card.proximo {
             border-top: 4px solid var(--warning-color);
@@ -1020,7 +1022,7 @@
             color: var(--primary-color);
         }
         .card.livre .card-icon   { color: var(--success-color); }
-        .card.em-uso .card-icon  { color: var(--light-color); }
+        .card.em-uso .card-icon  { color: var(--em-uso-border-color); }
         .card.proximo .card-icon { color: var(--warning-color); }
         .card.vencido .card-icon { color: var(--danger-color); }
         .card-value {
@@ -1035,10 +1037,10 @@
         }
         .card.em-uso .card-title,
         .card.em-uso .card-value {
-            color: var(--light-color);
+            color: var(--em-uso-text);
         }
         .card.em-uso .card-description {
-            color: color-mix(in srgb, white 65%, transparent);
+            color: color-mix(in srgb, var(--em-uso-text) 75%, transparent);
         }
         /* Filtros */
         .filters {
@@ -1078,8 +1080,8 @@
         .armario-card.em-uso {
             border-left-color: var(--em-uso-border-color);
             background: var(--em-uso-card-bg);
-            color: var(--light-color);
-            box-shadow: 0 14px 32px color-mix(in srgb, var(--primary-color) 30%, transparent);
+            color: var(--em-uso-text);
+            box-shadow: 0 14px 32px color-mix(in srgb, var(--em-uso-border-color) 30%, transparent);
         }
         .armario-card.proximo {
             border-left-color: var(--warning-color);
@@ -1096,7 +1098,7 @@
             box-shadow: 0 14px 32px color-mix(in srgb, var(--primary-color) 22%, transparent);
         }
         .armario-card.em-uso.visita-estendida {
-            box-shadow: 0 18px 40px color-mix(in srgb, var(--primary-color) 36%, transparent);
+            box-shadow: 0 18px 40px color-mix(in srgb, var(--em-uso-border-color) 36%, transparent);
         }
         .armario-header-right {
             display: flex;
@@ -1125,8 +1127,8 @@
             font-size: 0.7rem;
         }
         .armario-card.em-uso .visita-estendida-tag {
-            background-color: color-mix(in srgb, var(--surface-color) 22%, transparent);
-            color: var(--light-color);
+            background-color: color-mix(in srgb, var(--surface-color) 62%, white 38%);
+            color: var(--em-uso-text);
         }
         .armario-header {
             display: flex;
@@ -1140,7 +1142,7 @@
             color: var(--dark-color);
         }
         .armario-card.em-uso .armario-number {
-            color: var(--light-color);
+            color: var(--em-uso-text);
         }
         .armario-status {
             padding: 4px 8px;
@@ -1157,8 +1159,8 @@
             color: var(--em-uso-badge-text);
         }
         .armario-card.em-uso .status-em-uso {
-            background-color: color-mix(in srgb, var(--surface-color) 18%, transparent);
-            color: var(--light-color);
+            background-color: color-mix(in srgb, var(--surface-color) 62%, white 38%);
+            color: var(--em-uso-text);
         }
         .status-proximo {
             background-color: color-mix(in srgb, var(--warning-color) 20%, transparent);
@@ -1173,7 +1175,7 @@
             color: var(--muted-color);
         }
         .armario-card.em-uso .armario-details {
-            color: color-mix(in srgb, white 88%, transparent);
+            color: color-mix(in srgb, var(--em-uso-text) 85%, transparent);
         }
         .armario-details p {
             margin-bottom: 5px;
