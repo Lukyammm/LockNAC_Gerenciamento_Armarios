@@ -212,10 +212,10 @@
         }
         .header-actions {
             display: flex;
-            align-items: center;
-            gap: 20px;
+            align-items: flex-start;
+            gap: 16px;
             flex-wrap: wrap;
-            justify-content: flex-end;
+            justify-content: space-between;
             flex: 1 1 360px;
         }
         .header-selectors {
@@ -223,7 +223,8 @@
             align-items: flex-end;
             gap: 15px;
             flex-wrap: wrap;
-            flex: 1 1 100%;
+            flex: 1 1 auto;
+            min-width: 280px;
         }
         .selector-group {
             display: flex;
@@ -473,11 +474,34 @@
             opacity: 0;
             pointer-events: none;
         }
+        .header-quick-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-shrink: 0;
+        }
         .notification-bell {
             position: relative;
             cursor: pointer;
-            font-size: 1.2rem;
+            font-size: 1rem;
             color: var(--dark-color);
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: color-mix(in srgb, var(--light-color) 82%, white 18%);
+            border: 1px solid var(--border-color);
+            box-shadow: 0 6px 14px rgba(15, 23, 42, 0.08);
+            transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+        }
+        .notification-bell:hover,
+        .notification-bell:focus-visible {
+            background: color-mix(in srgb, var(--primary-color) 10%, var(--light-color) 90%);
+            box-shadow: 0 8px 18px rgba(15, 23, 42, 0.12);
+            transform: translateY(-1px);
+            outline: none;
         }
         .notification-badge {
             position: absolute;
@@ -486,12 +510,14 @@
             background-color: var(--danger-color);
             color: white;
             border-radius: 50%;
-            width: 18px;
+            min-width: 18px;
             height: 18px;
+            padding: 0 4px;
             font-size: 0.7rem;
             display: flex;
             align-items: center;
             justify-content: center;
+            line-height: 1;
         }
         /* SweetAlert custom form layout */
         .swal-form-grid {
@@ -547,30 +573,34 @@
             line-height: 1.4;
         }
         .user-profile {
-            display: flex;
+            display: inline-flex;
             align-items: center;
-            gap: 10px;
+            justify-content: center;
             cursor: pointer;
-            border-radius: 999px;
-            padding: 6px 10px;
-            transition: background-color 0.2s ease, box-shadow 0.2s ease;
+            border-radius: 12px;
+            padding: 4px;
+            transition: background-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+            background: color-mix(in srgb, var(--light-color) 82%, white 18%);
+            border: 1px solid var(--border-color);
+            box-shadow: 0 6px 14px rgba(15, 23, 42, 0.08);
         }
         .user-profile:focus-visible,
         .user-profile:hover {
-            background-color: color-mix(in srgb, var(--light-color) 78%, white 22%);
-            box-shadow: 0 0 0 3px var(--focus-ring);
+            background-color: color-mix(in srgb, var(--primary-color) 10%, var(--light-color) 90%);
+            box-shadow: 0 8px 18px rgba(15, 23, 42, 0.12);
+            transform: translateY(-1px);
             outline: none;
         }
         .user-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            border-radius: 10px;
             background-color: var(--secondary-color);
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
-            font-weight: bold;
+            font-weight: 700;
             overflow: hidden;
             position: relative;
         }
@@ -593,17 +623,7 @@
             opacity: 1;
         }
         .user-details {
-            display: flex;
-            flex-direction: column;
-            line-height: 1.1;
-        }
-        .user-details strong {
-            font-size: 0.95rem;
-            color: var(--dark-color);
-        }
-        .user-details span {
-            font-size: 0.8rem;
-            color: var(--muted-color);
+            display: none;
         }
         .avatar-modal-backdrop {
             position: fixed;
@@ -2153,12 +2173,9 @@
                 left: 36px;
                 transform: none;
             }
-            .notification-bell {
-                align-self: flex-end;
-            }
-            .user-profile {
+            .header-quick-actions {
                 width: 100%;
-                justify-content: space-between;
+                justify-content: flex-end;
             }
         }
         @media (max-width: 576px) {
@@ -2272,15 +2289,17 @@
                         </div>
                     </div>
                 </div>
-                <div class="notification-bell" id="notification-bell">
-                    <i class="fas fa-bell"></i>
-                    <span class="notification-badge">0</span>
-                </div>
-                <div class="user-profile" id="header-user-profile" role="button" tabindex="0" aria-haspopup="dialog" aria-controls="avatar-modal" aria-expanded="false">
-                    <div class="user-avatar" id="header-user-avatar">--</div>
-                    <div class="user-details">
-                        <strong id="header-user-name">Usuário</strong>
-                        <span id="header-user-role">Perfil geral</span>
+                <div class="header-quick-actions">
+                    <div class="notification-bell" id="notification-bell" aria-label="Notificações" tabindex="0">
+                        <i class="fas fa-bell" aria-hidden="true"></i>
+                        <span class="notification-badge">0</span>
+                    </div>
+                    <div class="user-profile" id="header-user-profile" role="button" tabindex="0" aria-haspopup="dialog" aria-controls="avatar-modal" aria-expanded="false">
+                        <div class="user-avatar" id="header-user-avatar">--</div>
+                        <div class="user-details" aria-hidden="true">
+                            <strong id="header-user-name">Usuário</strong>
+                            <span id="header-user-role">Perfil geral</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -4032,12 +4051,14 @@
                 elementos.headerUserAvatar.textContent = '--';
                 elementos.headerUserAvatar.style.backgroundImage = '';
                 elementos.headerUserAvatar.classList.remove('has-image');
+                elementos.headerUserProfile?.setAttribute('aria-label', 'Perfil do usuário');
                 atualizarResponsavelMovimentacaoInfo();
                 return;
             }
             const nomeLimpo = (usuario.nome || 'Usuário').toString().trim();
             elementos.headerUserName.textContent = nomeLimpo;
             elementos.headerUserRole.textContent = perfilAtualEhAdmin() ? 'Administrador' : 'Usuário';
+            elementos.headerUserProfile?.setAttribute('aria-label', `Perfil do usuário ${nomeLimpo} (${elementos.headerUserRole.textContent})`);
             const avatarUrl = usuario.avatarUrl ? usuario.avatarUrl.toString().trim() : '';
             if (avatarUrl) {
                 elementos.headerUserAvatar.style.backgroundImage = `url("${avatarUrl.replace(/"/g, '\\"')}")`;
