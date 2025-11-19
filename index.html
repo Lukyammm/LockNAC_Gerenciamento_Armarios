@@ -273,14 +273,23 @@
             box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
             min-width: unset;
             gap: 0;
+            overflow: hidden;
         }
         .selector-control.compact-selector .selector-icon {
             margin: 0;
             font-size: 1.2rem;
+            position: relative;
+            z-index: 2;
+            pointer-events: none;
         }
         .selector-control.compact-selector .selector-trigger {
             padding: 0;
             min-width: 0;
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
         }
         .selector-control.compact-selector .selector-trigger-text,
         .selector-control.compact-selector .selector-arrow {
