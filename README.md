@@ -1,7 +1,7 @@
-# LockNAC - Gerenciamento de Armários (Google Sheets)
+# Consigne - Gerenciamento de Armários (Google Sheets)
 
 ## Visão geral
-LockNAC é um sistema de controle de armários físicos voltado para visitantes e acompanhantes em unidades de saúde. A solução combina uma interface web moderna (HTML, CSS e JavaScript) hospedada como um Web App do Google Apps Script com uma base de dados inteiramente gerenciada em planilhas do Google Sheets. Todo o estado do sistema (cadastro de armários, movimentações, unidades, usuários, termos de responsabilidade e logs) é persistido no arquivo **Armários - NAC.xlsx**, permitindo operação simplificada, versionamento por planilha e auditoria diretamente no Google Drive.
+Consigne é um sistema de controle de armários físicos voltado para visitantes e acompanhantes em unidades de saúde. A solução combina uma interface web moderna (HTML, CSS e JavaScript) hospedada como um Web App do Google Apps Script com uma base de dados inteiramente gerenciada em planilhas do Google Sheets. Todo o estado do sistema (cadastro de armários, movimentações, unidades, usuários, termos de responsabilidade e logs) é persistido no arquivo **Armários - NAC.xlsx**, permitindo operação simplificada, versionamento por planilha e auditoria diretamente no Google Drive.
 
 ## Arquitetura do sistema
 - **Google Sheets**: funciona como banco de dados do sistema. Cada aba mantém um domínio de informação (Visitantes, Acompanhantes, Cadastro Armários, Usuários, Unidades, Cadastro de setores, Termos, Movimentações, Logs e Notificações). Todas as leituras e escritas de dados partem desse arquivo.
@@ -95,4 +95,4 @@ Qualquer ação não reconhecida retorna `{ success: false, error: 'Ação não 
 - Não armazene informações sensíveis (ex.: documentos pessoais) sem consentimento expresso. Caso necessário, aplique criptografia ou remova dados após o uso.
 - Ative auditoria: mantenha a aba **Logs** protegida e monitore alterações suspeitas.
 
-Com este README, qualquer administrador consegue entender, implantar e manter o sistema LockNAC integrado ao Google Sheets de ponta a ponta.
+Com este README, qualquer administrador consegue entender, implantar e manter o sistema Consigne integrado ao Google Sheets de ponta a ponta.
