@@ -1780,13 +1780,23 @@ function atualizarHorarioVisitante(parametros) {
     }
 
     var statusAtual = normalizarTextoBasico(armarioData[statusIndex]);
-    if (statusAtual !== 'em-uso') {
+    var statusPermitidos = ['em-uso', 'proximo', 'vencido'];
+    if (statusPermitidos.indexOf(statusAtual) === -1) {
       return { success: false, error: 'Armário não está em uso para atualização de horário' };
     }
 
     var novaHoraPrevista = visitaEstendida ? '' : horaPrevista;
     armarioData[horaPrevistaIndex] = novaHoraPrevista;
     armarioData[visitaEstendidaIndex] = visitaEstendida;
+
+    var dataRegistroIndex = obterIndiceColuna(estrutura, 'data registro', 9);
+    var dataRegistroValor = (dataRegistroIndex !== null && dataRegistroIndex !== undefined && dataRegistroIndex < armarioData.length)
+      ? armarioData[dataRegistroIndex]
+      : null;
+    var novoStatus = calcularStatusAutomaticoVisitante('em-uso', dataRegistroValor, novaHoraPrevista, new Date());
+    if (novoStatus) {
+      armarioData[statusIndex] = novoStatus;
+    }
 
     sheet.getRange(linhaPlanilha, 1, 1, totalColunas).setValues([armarioData]);
 
