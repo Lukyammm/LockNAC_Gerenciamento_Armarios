@@ -32,6 +32,13 @@ function normalizarNumeroArmario(valor) {
   return valor.toString().trim();
 }
 
+function normalizarIdentificador(valor) {
+  if (valor === null || valor === undefined) {
+    return '';
+  }
+  return valor.toString().trim();
+}
+
 function obterChaveNumeroArmario(numero) {
   var numeroNormalizado = normalizarNumeroArmario(numero);
   return numeroNormalizado ? numeroNormalizado : '__sem_numero__';
