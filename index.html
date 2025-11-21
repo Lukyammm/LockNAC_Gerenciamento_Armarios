@@ -6398,6 +6398,9 @@
                     : '';
                 const dataRegistroFormatada = formatarDataComDiaSemana(armario.dataRegistro);
                 const dataRegistroHtml = `<p><strong>Data:</strong> ${dataRegistroFormatada}</p>`;
+                const botoesEdicao = armario.tipo === 'visitante'
+                    ? `<div class="swal-extra-actions"><button id="btn-editar-horario" class="swal2-confirm swal2-styled swal2-secondary-action" type="button" style="background-color:#2c6e8f;">Editar horário/visita</button></div>`
+                    : '';
                 Swal.fire({
                     title: `Armário ${armario.numero}`,
                     html: `
@@ -6417,6 +6420,7 @@
                             : (armario.horaPrevista ? `<p><strong>Previsão de saída:</strong> ${armario.horaPrevista}</p>` : '')}
                         ${dataRegistroHtml}
                         ${termoHtml}
+                        ${botoesEdicao}
                         ${armario.tipo === 'acompanhante' && termoPendente ? `<div style="margin-top:16px;"><button id="btn-aplicar-termo" class="swal2-confirm swal2-styled" style="background-color:#2c6e8f;">Aplicar termo agora</button></div>` : ''}
                     `,
                     icon: 'info',
@@ -6438,6 +6442,21 @@
                                 `;
                             };
                             confirmButton.addEventListener('click', aplicarLoadingConfirmacao, { once: true });
+                        }
+                        if (armario.tipo === 'visitante') {
+                            const botaoEditar = Swal.getHtmlContainer().querySelector('#btn-editar-horario');
+                            if (botaoEditar) {
+                                botaoEditar.addEventListener('click', async event => {
+                                    event.preventDefault();
+                                    const finalizar = iniciarLoadingBotao(botaoEditar);
+                                    try {
+                                        Swal.close();
+                                        await abrirEdicaoHorarioArmario(armario.id);
+                                    } finally {
+                                        finalizar();
+                                    }
+                                });
+                            }
                         }
                         if (armario.tipo === 'acompanhante' && (termoPendente || termoEmAndamento)) {
                             const btn = Swal.getHtmlContainer().querySelector('#btn-aplicar-termo');
@@ -6465,6 +6484,107 @@
                         abrirMovimentacoes(armario.id);
                     }
                 });
+            }
+        }
+        // Abrir edição de horário/visita para armário em uso
+        async function abrirEdicaoHorarioArmario(idArmario) {
+            const armario = obterArmarioPorId(idArmario);
+            if (!armario) {
+                mostrarErro('Armário não encontrado. Atualize a lista e tente novamente.');
+                return;
+            }
+
+            if (normalizarTexto(armario.tipo) !== 'visitante') {
+                mostrarErro('Apenas armários de visitantes possuem horário previsto.');
+                return;
+            }
+
+            const visitaEstendidaAtual = Boolean(armario.visitaEstendida);
+            const horaAtual = armario.horaPrevista || '';
+
+            const resultado = await Swal.fire({
+                title: `Editar horário - Armário ${armario.numero}`,
+                html: `
+                    <div class="swal-form-grid">
+                        <div class="swal-form-group">
+                            <label for="editar-hora-prevista">Previsão de saída</label>
+                            <input type="time" id="editar-hora-prevista" class="swal2-input" value="${horaAtual}" ${visitaEstendidaAtual ? 'disabled' : ''}>
+                        </div>
+                        <div class="swal-form-group">
+                            <label class="swal2-checkbox" style="margin-top:12px;">
+                                <input type="checkbox" id="editar-visita-estendida" ${visitaEstendidaAtual ? 'checked' : ''}>
+                                <span style="margin-left:8px;">Visita estendida (sem horário previsto)</span>
+                            </label>
+                        </div>
+                    </div>
+                `,
+                focusConfirm: false,
+                showCancelButton: true,
+                confirmButtonText: 'Salvar alterações',
+                cancelButtonText: 'Cancelar',
+                didOpen: () => {
+                    const checkbox = Swal.getPopup().querySelector('#editar-visita-estendida');
+                    const inputHora = Swal.getPopup().querySelector('#editar-hora-prevista');
+                    if (checkbox && inputHora) {
+                        checkbox.addEventListener('change', () => {
+                            const estendida = checkbox.checked;
+                            inputHora.disabled = estendida;
+                            if (estendida) {
+                                inputHora.value = '';
+                            } else if (!inputHora.value) {
+                                inputHora.value = calcularHoraPrevistaSaida();
+                            }
+                        });
+                    }
+                },
+                preConfirm: () => {
+                    const popup = Swal.getPopup();
+                    const visitaEstendida = popup.querySelector('#editar-visita-estendida').checked;
+                    const horaPrevista = popup.querySelector('#editar-hora-prevista').value;
+                    if (!visitaEstendida && !horaPrevista) {
+                        Swal.showValidationMessage('Informe a previsão de saída ou marque visita estendida');
+                        return false;
+                    }
+                    return { visitaEstendida, horaPrevista };
+                }
+            });
+
+            if (!resultado.isConfirmed || !resultado.value) {
+                return;
+            }
+
+            const { visitaEstendida, horaPrevista } = resultado.value;
+            const dados = {
+                id: armario.idPlanilha || armario.id,
+                numero: armario.numero,
+                horaPrevista: visitaEstendida ? '' : horaPrevista,
+                visitaEstendida,
+                usuarioResponsavel: obterDescricaoResponsavelAtual()
+            };
+
+            const overlay = mostrarOverlayCarregamento('Atualizando horário do armário...');
+            try {
+                const resposta = await callGoogleScript('atualizarHorarioVisitante', dados);
+                if (resposta.success) {
+                    const atualizacoes = {
+                        horaPrevista: visitaEstendida ? '' : horaPrevista,
+                        visitaEstendida
+                    };
+                    const atualizado = atualizarArmarioLocal(armario.id, atualizacoes);
+                    if (!atualizado) {
+                        console.warn('Armário não encontrado para atualização local imediata:', armario.id);
+                    }
+                    atualizarResumoDashboardLocal();
+                    atualizarInterface();
+                    carregarDadosTabelas({ recarregarArmarios: false }).catch(erro => {
+                        console.error('Erro ao atualizar tabelas após edição de horário:', erro);
+                    });
+                    mostrarSucesso('Horário atualizado com sucesso');
+                } else {
+                    notificarErroPadrao(resposta, 'Não foi possível atualizar o horário');
+                }
+            } finally {
+                overlay();
             }
         }
         // Abrir modal para novo armário

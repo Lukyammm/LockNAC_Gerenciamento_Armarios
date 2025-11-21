@@ -1141,7 +1141,11 @@ function handlePost(e) {
       case 'cadastrarArmario':
         return ContentService.createTextOutput(JSON.stringify(cadastrarArmario(e.parameter)))
           .setMimeType(ContentService.MimeType.JSON);
-      
+
+      case 'atualizarHorarioVisitante':
+        return ContentService.createTextOutput(JSON.stringify(atualizarHorarioVisitante(e.parameter)))
+          .setMimeType(ContentService.MimeType.JSON);
+
       case 'liberarArmario':
         return ContentService.createTextOutput(JSON.stringify(liberarArmario(
           e.parameter.id,
@@ -1700,6 +1704,99 @@ function cadastrarArmario(armarioData) {
 
   } catch (error) {
     registrarLog('ERRO', `Erro ao cadastrar armário: ${error.toString()}`);
+    return { success: false, error: error.toString() };
+  }
+}
+
+function atualizarHorarioVisitante(parametros) {
+  try {
+    var idInformado = normalizarIdentificador(parametros.id || parametros.idPlanilha);
+    var numeroInformado = normalizarNumeroArmario(parametros.numero);
+    var horaPrevista = parametros.horaPrevista ? parametros.horaPrevista.toString().trim() : '';
+    var visitaEstendida = converterParaBoolean(parametros.visitaEstendida);
+    var usuarioResponsavel = determinarResponsavelRegistro(parametros.usuarioResponsavel);
+
+    if (!idInformado && !numeroInformado) {
+      return { success: false, error: 'Armário não informado para atualização' };
+    }
+
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName('Visitantes');
+
+    if (!sheet) {
+      return { success: false, error: 'Aba de Visitantes não encontrada' };
+    }
+
+    var estrutura = garantirColunaVisitaEstendida(sheet, obterEstruturaPlanilha(sheet));
+    var totalLinhas = sheet.getLastRow();
+
+    if (totalLinhas <= 1) {
+      return { success: false, error: 'Nenhum armário cadastrado' };
+    }
+
+    var totalColunas = estrutura.ultimaColuna || sheet.getLastColumn();
+    var idIndex = obterIndiceColuna(estrutura, 'id', 0);
+    var numeroIndex = obterIndiceColuna(estrutura, 'numero', 1);
+    var statusIndex = obterIndiceColuna(estrutura, 'status', 2);
+    var horaPrevistaIndex = obterIndiceColuna(estrutura, 'hora prevista', 8);
+    var visitaEstendidaIndex = obterIndiceColuna(estrutura, CABECALHOS_VISITA_ESTENDIDA, null);
+
+    if (horaPrevistaIndex === null || visitaEstendidaIndex === null) {
+      return { success: false, error: 'Colunas de horário previstas não encontradas' };
+    }
+
+    var linhaPlanilha = -1;
+    var armarioData = null;
+
+    if (idInformado) {
+      var intervaloId = sheet.getRange(2, idIndex + 1, totalLinhas - 1, 1);
+      var idFinder = intervaloId.createTextFinder(idInformado).matchEntireCell(true);
+      var idEncontrado = idFinder ? idFinder.findNext() : null;
+      if (idEncontrado) {
+        linhaPlanilha = idEncontrado.getRow();
+        armarioData = sheet.getRange(linhaPlanilha, 1, 1, totalColunas).getValues()[0];
+      }
+    }
+
+    if (linhaPlanilha === -1 && numeroInformado) {
+      var intervaloNumero = sheet.getRange(2, numeroIndex + 1, totalLinhas - 1, 1);
+      var numeroFinder = intervaloNumero.createTextFinder(numeroInformado).matchEntireCell(true);
+      var numeroEncontrado = numeroFinder ? numeroFinder.findNext() : null;
+      if (numeroEncontrado) {
+        linhaPlanilha = numeroEncontrado.getRow();
+        armarioData = sheet.getRange(linhaPlanilha, 1, 1, totalColunas).getValues()[0];
+      }
+    }
+
+    if (linhaPlanilha === -1 || !armarioData) {
+      return { success: false, error: 'Armário não encontrado' };
+    }
+
+    var statusAtual = normalizarTextoBasico(armarioData[statusIndex]);
+    if (statusAtual !== 'em-uso') {
+      return { success: false, error: 'Armário não está em uso para atualização de horário' };
+    }
+
+    var novaHoraPrevista = visitaEstendida ? '' : horaPrevista;
+    armarioData[horaPrevistaIndex] = novaHoraPrevista;
+    armarioData[visitaEstendidaIndex] = visitaEstendida;
+
+    sheet.getRange(linhaPlanilha, 1, 1, totalColunas).setValues([armarioData]);
+
+    limparCacheArmarios();
+    limparCacheHistorico();
+
+    var numeroArmario = armarioData[numeroIndex] || numeroInformado || '';
+    var detalheHorario = visitaEstendida ? 'visita estendida' : (novaHoraPrevista || '-');
+    registrarLog('ATUALIZACAO', `Horário do armário ${numeroArmario} atualizado para ${detalheHorario} por ${usuarioResponsavel}`);
+
+    return {
+      success: true,
+      horaPrevista: novaHoraPrevista,
+      visitaEstendida: visitaEstendida
+    };
+  } catch (error) {
+    registrarLog('ERRO', `Erro ao atualizar horário do armário: ${error.toString()}`);
     return { success: false, error: error.toString() };
   }
 }
