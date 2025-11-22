@@ -5744,20 +5744,32 @@
         }
         function sanearFiltrosLiberacao(filtros = {}) {
             const padraoLocal = obterDataHoraLocalPadrao().data;
-            let dataInicio = converterDataTextoParaISO(filtros.dataInicio || '') || '';
-            let dataFim = converterDataTextoParaISO(filtros.dataFim || '') || '';
-            if (dataInicio && !dataFim) {
-                dataFim = dataInicio;
-            }
-            if (dataFim && !dataInicio) {
-                dataInicio = dataFim;
-            }
-            if (!dataInicio && !dataFim) {
-                dataInicio = padraoLocal;
-                dataFim = padraoLocal;
-            }
             const paciente = (filtros.paciente || '').toString().trim();
             const prontuario = (filtros.prontuario || '').toString().trim();
+            const filtroTextoAtivo = Boolean(paciente || prontuario);
+            let dataInicio = converterDataTextoParaISO(filtros.dataInicio || '') || '';
+            let dataFim = converterDataTextoParaISO(filtros.dataFim || '') || '';
+
+            if (!filtroTextoAtivo) {
+                if (dataInicio && !dataFim) {
+                    dataFim = dataInicio;
+                }
+                if (dataFim && !dataInicio) {
+                    dataInicio = dataFim;
+                }
+                if (!dataInicio && !dataFim) {
+                    dataInicio = padraoLocal;
+                    dataFim = padraoLocal;
+                }
+            } else {
+                if (dataInicio && !dataFim) {
+                    dataFim = dataInicio;
+                }
+                if (dataFim && !dataInicio) {
+                    dataInicio = dataFim;
+                }
+            }
+
             return { dataInicio, dataFim, paciente, prontuario };
         }
         function gerarChaveFiltroLiberacao(filtros = {}) {

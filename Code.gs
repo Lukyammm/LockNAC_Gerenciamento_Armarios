@@ -2473,33 +2473,38 @@ function getPlanilhaLiberacao(parametros) {
     var dataInicio = interpretarDataParametroSeguro(dataInicioParametro, timezone);
     var dataFim = interpretarDataParametroSeguro(dataFimParametro, timezone);
 
-    if (dataInicio && !dataFim) {
-      dataFim = dataInicio;
-    }
-    if (dataFim && !dataInicio) {
-      dataInicio = dataFim;
+    var filtroTextoAtivo = tokensPacienteFiltro.length > 0 || tokensProntuarioFiltro.length > 0;
+    var aplicarFiltroData = !filtroTextoAtivo;
+
+    if (aplicarFiltroData) {
+      if (dataInicio && !dataFim) {
+        dataFim = dataInicio;
+      }
+      if (dataFim && !dataInicio) {
+        dataInicio = dataFim;
+      }
+
+      if (!dataInicio && !dataFim) {
+        var dataPadrao = obterDataAtualNormalizada(timezone);
+        dataInicio = dataPadrao;
+        dataFim = dataPadrao;
+      }
+
+      if (!dataInicio || !dataFim) {
+        return { success: false, error: 'Informe um período válido para realizar a busca.' };
+      }
+
+      if (dataInicio.getTime() > dataFim.getTime()) {
+        var temp = dataInicio;
+        dataInicio = dataFim;
+        dataFim = temp;
+      }
     }
 
-    if (!dataInicio && !dataFim) {
-      var dataPadrao = obterDataAtualNormalizada(timezone);
-      dataInicio = dataPadrao;
-      dataFim = dataPadrao;
-    }
+    var chaveInicio = aplicarFiltroData ? gerarChaveDataComparacao(dataInicio, timezone) : null;
+    var chaveFim = aplicarFiltroData ? gerarChaveDataComparacao(dataFim, timezone) : null;
 
-    if (!dataInicio || !dataFim) {
-      return { success: false, error: 'Informe um período válido para realizar a busca.' };
-    }
-
-    if (dataInicio.getTime() > dataFim.getTime()) {
-      var temp = dataInicio;
-      dataInicio = dataFim;
-      dataFim = temp;
-    }
-
-    var chaveInicio = gerarChaveDataComparacao(dataInicio, timezone);
-    var chaveFim = gerarChaveDataComparacao(dataFim, timezone);
-
-    if (!chaveInicio || !chaveFim) {
+    if (aplicarFiltroData && (!chaveInicio || !chaveFim)) {
       return { success: false, error: 'Informe um período válido para realizar a busca.' };
     }
 
@@ -2601,8 +2606,10 @@ function getPlanilhaLiberacao(parametros) {
         var dataLinha = extrairDataValidaDaCelula(valorData, exibicaoData, timezone);
         var chaveLinha = gerarChaveDataComparacao(dataLinha, timezone);
 
-        if (!chaveLinha || chaveLinha < chaveInicio || chaveLinha > chaveFim) {
-          continue;
+        if (aplicarFiltroData) {
+          if (!chaveLinha || chaveLinha < chaveInicio || chaveLinha > chaveFim) {
+            continue;
+          }
         }
 
         var valorPaciente = indicePaciente >= 0 && indicePaciente < linhaExibicao.length
@@ -2633,10 +2640,10 @@ function getPlanilhaLiberacao(parametros) {
       columns: cabecalhos,
       rows: linhasFiltradas,
       filtro: {
-        dataInicio: Utilities.formatDate(dataInicio, timezone, 'yyyy-MM-dd'),
-        dataFim: Utilities.formatDate(dataFim, timezone, 'yyyy-MM-dd'),
-        dataInicioFormatada: Utilities.formatDate(dataInicio, timezone, 'dd/MM/yyyy'),
-        dataFimFormatada: Utilities.formatDate(dataFim, timezone, 'dd/MM/yyyy'),
+        dataInicio: dataInicio ? Utilities.formatDate(dataInicio, timezone, 'yyyy-MM-dd') : '',
+        dataFim: dataFim ? Utilities.formatDate(dataFim, timezone, 'yyyy-MM-dd') : '',
+        dataInicioFormatada: dataInicio ? Utilities.formatDate(dataInicio, timezone, 'dd/MM/yyyy') : '',
+        dataFimFormatada: dataFim ? Utilities.formatDate(dataFim, timezone, 'dd/MM/yyyy') : '',
         paciente: pacienteFiltroTexto,
         prontuario: prontuarioFiltroTexto
       },
