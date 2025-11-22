@@ -8394,7 +8394,7 @@
             let etapaAtual = 'termo';
 
             try {
-                const resultadoFinalizacao = await callGoogleScript('finalizarTermo', {
+                const resultadoOperacao = await callGoogleScript('finalizarTermoELiberar', {
                     armarioId: identificadores?.idPlanilha || '',
                     numeroArmario: identificadores?.numeroArmario || '',
                     metodo,
@@ -8404,21 +8404,19 @@
                     tipo: identificadores?.tipo || ''
                 });
 
-                if (!resultadoFinalizacao.success) {
-                    const mensagemErro = (resultadoFinalizacao.error || '').toString();
-                    const erroNormalizado = mensagemErro.toLowerCase();
-                    const erroSemAcento = erroNormalizado.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-                    const termoNaoEncontrado = erroNormalizado.includes('termo não localizado')
-                        || erroSemAcento.includes('termo nao localizado');
+                const finalizacao = resultadoOperacao?.finalizacao || {};
+                const liberacao = resultadoOperacao?.liberacao || {};
+                const termoNaoEncontrado = Boolean(resultadoOperacao?.termoNaoLocalizado);
 
-                    if (!termoNaoEncontrado) {
-                        atualizarEtapa('termo', 'erro');
-                        await aguardarTransicao();
-                        Swal.close();
-                        notificarErroPadrao(resultadoFinalizacao, 'Não foi possível finalizar o termo.');
-                        return;
-                    }
+                if (!finalizacao.success && !termoNaoEncontrado) {
+                    atualizarEtapa('termo', 'erro');
+                    await aguardarTransicao();
+                    Swal.close();
+                    notificarErroPadrao(finalizacao, 'Não foi possível finalizar o termo.');
+                    return;
+                }
 
+                if (termoNaoEncontrado) {
                     mensagemSucesso = 'Armário liberado com sucesso. Termo não localizado para finalização.';
                 }
 
@@ -8426,17 +8424,11 @@
                 etapaAtual = 'armario';
                 atualizarEtapa('armario', 'ativa');
 
-                const resultadoLiberacao = await callGoogleScript('liberarArmario', {
-                    id: identificadores?.idPlanilha || '',
-                    tipo: 'acompanhante',
-                    numero: identificadores?.numeroArmario || ''
-                });
-
-                if (!resultadoLiberacao.success) {
+                if (!resultadoOperacao?.success || !liberacao.success) {
                     atualizarEtapa('armario', 'erro');
                     await aguardarTransicao();
                     Swal.close();
-                    notificarErroPadrao(resultadoLiberacao);
+                    notificarErroPadrao(liberacao);
                     return;
                 }
 
