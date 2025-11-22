@@ -3737,15 +3737,19 @@ function getTermo(dados) {
 
 function finalizarTermo(dados) {
   try {
-    var armarioId = parseInt(dados.armarioId, 10);
-    if (!armarioId) {
-      return { success: false, error: 'ID do armário inválido' };
+    var numeroInformado = normalizarNumeroArmario(dados.numeroArmario);
+    var armarioIdInformado = dados.armarioId !== undefined && dados.armarioId !== null
+      ? parseInt(dados.armarioId, 10)
+      : null;
+    var armarioIdValido = Number.isFinite(armarioIdInformado) && armarioIdInformado > 0;
+
+    if (!armarioIdValido && !numeroInformado) {
+      return { success: false, error: 'Identificadores do armário ausentes' };
     }
 
     var metodo = (dados.metodo || 'assinatura').toString();
     var confirmacao = dados.confirmacao || '';
     var assinaturaFinal = dados.assinaturaFinal || '';
-    var numeroInformado = normalizarNumeroArmario(dados.numeroArmario);
     var tipoTermo = dados && dados.tipo ? dados.tipo.toString() : '';
 
     var termosInfo = obterTermosRegistrados();
@@ -3761,7 +3765,7 @@ function finalizarTermo(dados) {
         continue;
       }
 
-      if (termoAtual.armarioId != armarioId) {
+      if (armarioIdValido && termoAtual.armarioId != armarioIdInformado) {
         continue;
       }
 
@@ -3828,7 +3832,11 @@ function finalizarTermo(dados) {
     var responsavelFinalizacao = determinarResponsavelRegistro(dados.usuarioResponsavel);
     assinaturas.responsavelFinalizacao = responsavelFinalizacao;
 
-    var movimentacoesResultado = getMovimentacoes({ armarioId: armarioId, numeroArmario: numeroInformado });
+    var armarioIdFinal = armarioIdValido
+      ? armarioIdInformado
+      : (termoEncontrado.armarioId ? parseInt(termoEncontrado.armarioId, 10) || null : null);
+
+    var movimentacoesResultado = getMovimentacoes({ armarioId: armarioIdFinal, numeroArmario: numeroInformado });
     var movimentacoes = [];
     if (movimentacoesResultado && movimentacoesResultado.success && Array.isArray(movimentacoesResultado.data)) {
       movimentacoes = movimentacoesResultado.data;
@@ -3874,7 +3882,7 @@ function finalizarTermo(dados) {
 
     termoEncontrado.status = 'Finalizado';
 
-    finalizarMovimentacoesArmario(armarioId, numeroInformado, tipoTermo);
+    finalizarMovimentacoesArmario(armarioIdFinal, numeroInformado, tipoTermo);
 
     limparCacheTermos();
     limparCacheArmarios();
@@ -3884,7 +3892,9 @@ function finalizarTermo(dados) {
     return {
       success: true,
       pdfUrl: resultadoPDF.pdfUrl,
-      finalizadoEm: finalizacaoIso
+      finalizadoEm: finalizacaoIso,
+      armarioId: armarioIdFinal || '',
+      numeroArmario: termoEncontrado.numeroArmario
     };
 
   } catch (error) {
@@ -3896,6 +3906,10 @@ function finalizarTermo(dados) {
 function finalizarTermoELiberar(dados) {
   try {
     var resultadoFinalizacao = finalizarTermo(dados);
+
+    var armarioIdResposta = (resultadoFinalizacao && resultadoFinalizacao.armarioId) || dados.armarioId;
+    var numeroArmarioResposta = (resultadoFinalizacao && resultadoFinalizacao.numeroArmario) || dados.numeroArmario;
+    var tipoResposta = dados.tipo || '';
 
     var mensagemErro = (resultadoFinalizacao && resultadoFinalizacao.error) || '';
     var erroNormalizado = mensagemErro.toString().toLowerCase();
@@ -3916,9 +3930,9 @@ function finalizarTermoELiberar(dados) {
     }
 
     var resultadoLiberacao = liberarArmario(
-      dados.armarioId,
-      'acompanhante',
-      dados.numeroArmario,
+      armarioIdResposta,
+      tipoResposta || 'acompanhante',
+      numeroArmarioResposta,
       dados.usuarioResponsavel
     );
 
