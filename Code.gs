@@ -3893,6 +3893,51 @@ function finalizarTermo(dados) {
   }
 }
 
+function finalizarTermoELiberar(dados) {
+  try {
+    var resultadoFinalizacao = finalizarTermo(dados);
+
+    var mensagemErro = (resultadoFinalizacao && resultadoFinalizacao.error) || '';
+    var erroNormalizado = mensagemErro.toString().toLowerCase();
+    var erroSemAcento = erroNormalizado.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    var termoNaoLocalizado = !resultadoFinalizacao || !resultadoFinalizacao.success;
+    termoNaoLocalizado = termoNaoLocalizado && (
+      erroNormalizado.indexOf('termo não localizado') !== -1 ||
+      erroSemAcento.indexOf('termo nao localizado') !== -1
+    );
+
+    if (!resultadoFinalizacao.success && !termoNaoLocalizado) {
+      return {
+        success: false,
+        finalizacao: resultadoFinalizacao,
+        liberacao: null,
+        termoNaoLocalizado: termoNaoLocalizado
+      };
+    }
+
+    var resultadoLiberacao = liberarArmario(
+      dados.armarioId,
+      'acompanhante',
+      dados.numeroArmario,
+      dados.usuarioResponsavel
+    );
+
+    var sucessoOperacao = Boolean(
+      resultadoLiberacao && resultadoLiberacao.success && (resultadoFinalizacao.success || termoNaoLocalizado)
+    );
+
+    return {
+      success: sucessoOperacao,
+      finalizacao: resultadoFinalizacao,
+      liberacao: resultadoLiberacao,
+      termoNaoLocalizado: termoNaoLocalizado
+    };
+  } catch (error) {
+    registrarLog('ERRO_TERMO', 'Erro ao finalizar e liberar armário: ' + error.toString());
+    return { success: false, error: error.toString() };
+  }
+}
+
 // Função para gerar e salvar PDF
 function gerarESalvarTermoPDF(dadosTermo) {
   try {
