@@ -1368,6 +1368,7 @@ function getArmariosFromSheet(sheetName, tipo, termosMap) {
   if (isVisitante) {
     estrutura = garantirColunaVisitaEstendida(sheet, estrutura);
   }
+  estrutura = garantirColunaProntuario(sheet, estrutura);
   var totalLinhas = sheet.getLastRow() - 1;
   var totalColunas = estrutura.ultimaColuna || (isVisitante ? 14 : 12);
   var dados = sheet.getRange(2, 1, totalLinhas, totalColunas).getValues();
@@ -1454,6 +1455,7 @@ function getArmariosFromSheet(sheetName, tipo, termosMap) {
       status: status,
       nomeVisitante: obterValorLinha(row, estrutura, nomeChaves, row[nomeIndex] || ''),
       nomePaciente: row[pacienteIndex] || '',
+      prontuario: obterValorLinha(row, estrutura, 'prontuario', ''),
       leito: row[leitoIndex] || '',
       volumes: row[volumesIndex] || 0,
       horaInicio: formatarHorarioPlanilha(row[horaInicioIndex]),
@@ -1578,6 +1580,7 @@ function cadastrarArmario(armarioData) {
     if (sheetName === 'Visitantes') {
       estrutura = garantirColunaVisitaEstendida(sheet, estrutura);
     }
+    estrutura = garantirColunaProntuario(sheet, estrutura);
     var totalColunas = estrutura.ultimaColuna || (sheetName === 'Visitantes' ? 14 : 12);
     var linhaPlanilha = -1;
     var linhaAtual = null;
@@ -1653,6 +1656,7 @@ function cadastrarArmario(armarioData) {
     definirValorLinha(novaLinha, estrutura, 'status', 'em-uso');
     definirValorLinha(novaLinha, estrutura, nomeChavesCadastro, armarioData.nomeVisitante);
     definirValorLinha(novaLinha, estrutura, 'nome paciente', armarioData.nomePaciente);
+    definirValorLinha(novaLinha, estrutura, 'prontuario', armarioData.prontuario || '');
     definirValorLinha(novaLinha, estrutura, 'leito', armarioData.leito);
     definirValorLinha(novaLinha, estrutura, 'volumes', volumes);
     definirValorLinha(novaLinha, estrutura, 'hora inicio', horaInicio);
@@ -4201,6 +4205,25 @@ function garantirColunaVisitaEstendida(sheet, estrutura) {
     sheet.insertColumnAfter(ultimaColuna);
     sheet.getRange(1, ultimaColuna + 1).setValue('Visita Estendida');
   }
+
+  return obterEstruturaPlanilha(sheet);
+}
+
+function garantirColunaProntuario(sheet, estrutura) {
+  if (!sheet) {
+    return estrutura;
+  }
+
+  var estruturaAtual = estrutura || obterEstruturaPlanilha(sheet);
+  var indiceProntuario = obterIndiceColuna(estruturaAtual, 'prontuario', null);
+
+  if (indiceProntuario !== null && indiceProntuario !== undefined) {
+    return estruturaAtual;
+  }
+
+  var ultimaColuna = estruturaAtual.ultimaColuna || sheet.getLastColumn();
+  sheet.insertColumnAfter(ultimaColuna);
+  sheet.getRange(1, ultimaColuna + 1).setValue('Prontuário');
 
   return obterEstruturaPlanilha(sheet);
 }
