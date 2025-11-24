@@ -3327,7 +3327,9 @@
         }
         const STORAGE_KEYS = {
             sessaoUsuario: 'locknac_sessao_usuario',
-            rascunhosOcupacao: 'locknac_rascunhos_ocupacao'
+            rascunhosOcupacao: 'locknac_rascunhos_ocupacao',
+            rascunhoArmario: 'locknac_rascunho_armario',
+            rascunhoTermo: 'locknac_rascunho_termo'
         };
         const SESSAO_TTL_MS = 1000 * 60 * 60 * 8; // 8 horas
         const AVATAR_OPTIONS = [
@@ -3366,6 +3368,15 @@
         ];
         let armazenamentoLocalDisponivel;
         let rascunhosOcupacaoRestaurados = false;
+        function removerRascunhoChave(chave) {
+            const storage = obterArmazenamentoLocal();
+            if (!storage) return;
+            try {
+                storage.removeItem(chave);
+            } catch (erro) {
+                console.warn('Falha ao limpar rascunho local:', erro);
+            }
+        }
         function obterArmazenamentoLocal() {
             if (armazenamentoLocalDisponivel !== undefined) {
                 return armazenamentoLocalDisponivel;
@@ -3443,6 +3454,179 @@
             } else {
                 limparSessaoUsuario();
             }
+        }
+        function coletarCamposArmario() {
+            const formulario = elementos.armarioForm;
+            return {
+                meta: {
+                    armarioId: normalizarIdentificador(formulario?.dataset.armarioId || ''),
+                    numero: (formulario?.dataset.numero || '').toString(),
+                    tipo: (formulario?.dataset.tipo || '').toString()
+                },
+                valores: {
+                    nomeVisitante: document.getElementById('nome-visitante')?.value || '',
+                    nomePaciente: document.getElementById('nome-paciente')?.value || '',
+                    leito: document.getElementById('leito')?.value || '',
+                    whatsapp: document.getElementById('whatsapp-contato')?.value || '',
+                    volumes: document.getElementById('volumes')?.value || '',
+                    horaPrevista: elementos.horaPrevistaInput?.value || '',
+                    visitaEstendida: Boolean(elementos.visitaEstendidaInput?.checked)
+                }
+            };
+        }
+        function salvarRascunhoArmario() {
+            const storage = obterArmazenamentoLocal();
+            if (!storage || !elementos.armarioForm || elementos.armarioModal?.style.display === 'none') {
+                return;
+            }
+            const dados = coletarCamposArmario();
+            const possuiDados = Object.values(dados.valores).some(valor => {
+                if (typeof valor === 'boolean') return valor;
+                return (valor || '').toString().trim();
+            });
+            try {
+                if (!possuiDados) {
+                    removerRascunhoChave(STORAGE_KEYS.rascunhoArmario);
+                    return;
+                }
+                storage.setItem(STORAGE_KEYS.rascunhoArmario, JSON.stringify(dados));
+            } catch (erro) {
+                console.warn('Não foi possível salvar o rascunho do armário localmente:', erro);
+            }
+        }
+        function restaurarRascunhoArmario() {
+            const storage = obterArmazenamentoLocal();
+            if (!storage || !elementos.armarioForm) return;
+            try {
+                const bruto = storage.getItem(STORAGE_KEYS.rascunhoArmario);
+                if (!bruto) return;
+                const dados = JSON.parse(bruto);
+                const metaAtual = coletarCamposArmario().meta;
+                const metaSalva = dados?.meta || {};
+                const metaIncompativel = (metaAtual.armarioId && metaSalva.armarioId && metaAtual.armarioId !== metaSalva.armarioId)
+                    || (metaAtual.numero && metaSalva.numero && metaAtual.numero !== metaSalva.numero)
+                    || (metaAtual.tipo && metaSalva.tipo && metaAtual.tipo !== metaSalva.tipo);
+                if (metaIncompativel) return;
+                const valores = dados?.valores || {};
+                if (document.getElementById('nome-visitante')) document.getElementById('nome-visitante').value = valores.nomeVisitante || '';
+                if (document.getElementById('nome-paciente')) document.getElementById('nome-paciente').value = valores.nomePaciente || '';
+                if (document.getElementById('leito')) document.getElementById('leito').value = valores.leito || '';
+                if (document.getElementById('whatsapp-contato')) document.getElementById('whatsapp-contato').value = valores.whatsapp || '';
+                if (document.getElementById('volumes')) document.getElementById('volumes').value = valores.volumes || '';
+                if (elementos.horaPrevistaInput) elementos.horaPrevistaInput.value = valores.horaPrevista || '';
+                if (elementos.visitaEstendidaInput) elementos.visitaEstendidaInput.checked = Boolean(valores.visitaEstendida);
+                atualizarInterfaceVisitaEstendida({ manterHorarioManual: true });
+            } catch (erro) {
+                console.warn('Falha ao restaurar rascunho do armário:', erro);
+                removerRascunhoChave(STORAGE_KEYS.rascunhoArmario);
+            }
+        }
+        function limparRascunhoArmario() {
+            removerRascunhoChave(STORAGE_KEYS.rascunhoArmario);
+        }
+        function coletarRascunhoTermo() {
+            const meta = {
+                armarioId: normalizarIdentificador(termoArmarioAtual || ''),
+                numero: (elementos.termoArmario?.textContent || '').toString().trim()
+            };
+            const nascimentoValor = elementos.termoNascimento?.value || '';
+            return {
+                meta,
+                passo: termoPassoAtual,
+                valores: {
+                    paciente: document.getElementById('termo-paciente')?.value || '',
+                    prontuario: document.getElementById('termo-prontuario')?.value || '',
+                    nascimento: nascimentoValor,
+                    setor: elementos.termoSetor?.value || '',
+                    leito: document.getElementById('termo-leito')?.value || '',
+                    consciente: document.querySelector('input[name="termo-consciente"]:checked')?.value || '',
+                    acompanhante: document.getElementById('termo-resp-nome')?.value || '',
+                    telefone: document.getElementById('termo-resp-telefone')?.value || '',
+                    documento: document.getElementById('termo-resp-doc')?.value || '',
+                    parentesco: document.getElementById('termo-resp-parentesco')?.value || ''
+                },
+                orientacoes: ['ori1', 'ori2', 'ori3'].filter(chave => document.getElementById(`termo-${chave}`)?.checked),
+                volumes: obterVolumesTermo(),
+                assinatura: termoAssinaturaDesenhada && elementos.termoAssinaturaCanvas
+                    ? elementos.termoAssinaturaCanvas.toDataURL('image/png')
+                    : ''
+            };
+        }
+        function salvarRascunhoTermo() {
+            if (termoArmarioAtual === null) return;
+            const storage = obterArmazenamentoLocal();
+            if (!storage) return;
+            const rascunho = coletarRascunhoTermo();
+            const campos = [rascunho.valores.paciente, rascunho.valores.prontuario, rascunho.valores.nascimento,
+                rascunho.valores.setor, rascunho.valores.leito, rascunho.valores.consciente, rascunho.valores.acompanhante,
+                rascunho.valores.telefone, rascunho.valores.documento, rascunho.valores.parentesco];
+            const possuiDados = campos.some(valor => (valor || '').toString().trim())
+                || (rascunho.orientacoes && rascunho.orientacoes.length > 0)
+                || (rascunho.volumes && rascunho.volumes.some(v => (v.quantidade || v.descricao)))
+                || Boolean(rascunho.assinatura);
+            try {
+                if (!possuiDados) {
+                    removerRascunhoChave(STORAGE_KEYS.rascunhoTermo);
+                    return;
+                }
+                storage.setItem(STORAGE_KEYS.rascunhoTermo, JSON.stringify(rascunho));
+            } catch (erro) {
+                console.warn('Não foi possível salvar o rascunho do termo localmente:', erro);
+            }
+        }
+        function restaurarRascunhoTermo() {
+            const storage = obterArmazenamentoLocal();
+            if (!storage || termoArmarioAtual === null) return;
+            try {
+                const bruto = storage.getItem(STORAGE_KEYS.rascunhoTermo);
+                if (!bruto) return;
+                const dados = JSON.parse(bruto);
+                const metaSalva = dados?.meta || {};
+                const armarioAtual = normalizarIdentificador(termoArmarioAtual);
+                if (metaSalva.armarioId && normalizarIdentificador(metaSalva.armarioId) !== armarioAtual) return;
+                const valores = dados?.valores || {};
+                const nascimento = valores.nascimento || '';
+                if (document.getElementById('termo-paciente')) document.getElementById('termo-paciente').value = valores.paciente || '';
+                if (document.getElementById('termo-prontuario')) document.getElementById('termo-prontuario').value = valores.prontuario || '';
+                if (elementos.termoNascimento) {
+                    elementos.termoNascimento.value = nascimento;
+                    const iso = converterDataTextoParaISO(nascimento);
+                    if (iso) {
+                        elementos.termoNascimento.dataset.isoValue = iso;
+                    } else {
+                        delete elementos.termoNascimento.dataset.isoValue;
+                    }
+                }
+                if (elementos.termoSetor) elementos.termoSetor.value = valores.setor || '';
+                if (document.getElementById('termo-leito')) document.getElementById('termo-leito').value = valores.leito || '';
+                if (document.getElementById('termo-resp-nome')) document.getElementById('termo-resp-nome').value = valores.acompanhante || '';
+                if (document.getElementById('termo-resp-telefone')) document.getElementById('termo-resp-telefone').value = valores.telefone || '';
+                if (document.getElementById('termo-resp-doc')) document.getElementById('termo-resp-doc').value = valores.documento || '';
+                if (document.getElementById('termo-resp-parentesco')) document.getElementById('termo-resp-parentesco').value = valores.parentesco || '';
+                if (valores.consciente) {
+                    const radio = document.querySelector(`input[name="termo-consciente"][value="${valores.consciente}"]`);
+                    if (radio) radio.checked = true;
+                }
+                ['ori1', 'ori2', 'ori3'].forEach(chave => {
+                    const checkbox = document.getElementById(`termo-${chave}`);
+                    if (checkbox) {
+                        checkbox.checked = Boolean(dados?.orientacoes?.includes(chave));
+                    }
+                });
+                if (Array.isArray(dados?.volumes)) {
+                    prepararVolumesTermo(dados.volumes);
+                }
+                if (dados?.assinatura) {
+                    restaurarAssinaturaTermo(dados.assinatura);
+                }
+                mostrarPassoTermo(Number.isInteger(dados?.passo) ? dados.passo : 0);
+            } catch (erro) {
+                console.warn('Falha ao restaurar rascunho do termo:', erro);
+                removerRascunhoChave(STORAGE_KEYS.rascunhoTermo);
+            }
+        }
+        function limparRascunhoTermo() {
+            removerRascunhoChave(STORAGE_KEYS.rascunhoTermo);
         }
         function rascunhoOcupacaoTemDados(rascunho) {
             if (!rascunho) return false;
@@ -4669,6 +4853,8 @@
             movimentacaoArmarioAtual = null;
             termoAssinaturaDesenhada = false;
             termoDesenhandoAssinatura = false;
+            limparRascunhoArmario();
+            limparRascunhoTermo();
             fecharModalArmario();
             fecharModalUsuario();
             fecharTermoModal();
@@ -5038,6 +5224,7 @@
                     }
                 }
             }
+            salvarRascunhoArmario();
         }
         // Configuração de eventos
         function inicializarEventos() {
@@ -5065,13 +5252,17 @@
                 });
             }
             if (elementos.visitaEstendidaInput) {
-                elementos.visitaEstendidaInput.addEventListener('change', () => atualizarInterfaceVisitaEstendida());
+                elementos.visitaEstendidaInput.addEventListener('change', () => {
+                    atualizarInterfaceVisitaEstendida();
+                    salvarRascunhoArmario();
+                });
             }
             if (elementos.horaPrevistaInput) {
                 elementos.horaPrevistaInput.addEventListener('input', () => {
                     if (elementos.armarioForm) {
                         elementos.armarioForm.dataset.horaPrevistaAnterior = elementos.horaPrevistaInput.value;
                     }
+                    salvarRascunhoArmario();
                 });
             }
             // Notificações
@@ -5200,6 +5391,12 @@
                 e.preventDefault();
                 salvarArmario();
             });
+            ['nome-visitante', 'nome-paciente', 'leito', 'whatsapp-contato', 'volumes', 'hora-prevista'].forEach(id => {
+                const campo = document.getElementById(id);
+                if (!campo) return;
+                campo.addEventListener('input', salvarRascunhoArmario);
+                campo.addEventListener('change', salvarRascunhoArmario);
+            });
             elementos.usuarioForm.addEventListener('submit', function(e) {
                 e.preventDefault();
                 salvarUsuario();
@@ -5289,6 +5486,10 @@
             elementos.termoBtnAvancar.addEventListener('click', avancarOuAplicarTermo);
             elementos.termoBtnCancelar.addEventListener('click', fecharTermoModal);
             elementos.termoModalClose.addEventListener('click', fecharTermoModal);
+            if (elementos.termoForm) {
+                elementos.termoForm.addEventListener('input', salvarRascunhoTermo);
+                elementos.termoForm.addEventListener('change', salvarRascunhoTermo);
+            }
             if (elementos.termoNascimento) {
                 elementos.termoNascimento.addEventListener('input', () => normalizarCampoDataNascimento(elementos.termoNascimento));
                 elementos.termoNascimento.addEventListener('blur', () => finalizarCampoDataNascimento(elementos.termoNascimento));
@@ -5297,6 +5498,7 @@
                 elementos.termoAddVolume.addEventListener('click', () => {
                     const novoVolume = adicionarVolumeTermo();
                     novoVolume?.querySelector('.termo-volume-qty')?.focus();
+                    salvarRascunhoTermo();
                 });
             }
             if (elementos.termoVolumesList) {
@@ -5305,14 +5507,17 @@
                     if (!botao) return;
                     const item = botao.closest('.wizard-volume-item');
                     removerVolumeTermo(item);
+                    salvarRascunhoTermo();
                 });
                 elementos.termoVolumesList.addEventListener('input', () => {
                     elementos.termoVolumesField?.classList.remove('invalid');
+                    salvarRascunhoTermo();
                 });
             }
             if (elementos.termoAssinaturaClear) {
                 elementos.termoAssinaturaClear.addEventListener('click', () => {
                     limparAssinaturaTermo();
+                    salvarRascunhoTermo();
                 });
             }
             if (elementos.termoAssinaturaCanvas) {
@@ -6978,6 +7183,7 @@
                 elementos.armarioForm.dataset.armarioId = armario.id;
                 elementos.armarioForm.dataset.tipo = armario.tipo;
                 elementos.armarioForm.dataset.numero = armario.numero;
+                restaurarRascunhoArmario();
                 elementos.armarioModal.style.display = 'flex';
             } else {
                 const termoStatusNormalizado = normalizarTexto(armario.termoStatus);
@@ -7352,6 +7558,7 @@
         }
         // Fechar modais
         function fecharModalArmario() {
+            limparRascunhoArmario();
             elementos.armarioModal.style.display = 'none';
         }
         function fecharModalUsuario() {
@@ -7420,6 +7627,7 @@
                         }
                         await abrirTermoWizard(chaveArmario || idPlanilha);
                         fecharModalArmario();
+                        limparRascunhoArmario();
                     } catch (erroTermo) {
                         termoPreCadastro = null;
                         termoCadastroArmario = null;
@@ -7431,6 +7639,7 @@
                     const resultado = await callGoogleScript('cadastrarArmario', dados);
                     if (resultado.success) {
                         fecharModalArmario();
+                        limparRascunhoArmario();
 
                         let idParaAtualizacao = armarioChave;
                         if (!idParaAtualizacao && idPlanilha) {
@@ -7810,6 +8019,7 @@
             const identificadores = montarIdentificadoresArmario(armario);
             ajustarObrigatoriedadeCamposPaciente(identificadores?.tipo || armario.tipo || '');
             termoArmarioAtual = id;
+            termoPassoAtual = 0;
             elementos.termoArmario.textContent = identificadores?.numeroArmario || armario.numero || '';
             elementos.termoForm.reset();
             elementos.termoForm.querySelectorAll('.wizard-field').forEach(field => field.classList.remove('invalid'));
@@ -7872,12 +8082,13 @@
             });
 
             prepararVolumesTermo(Array.isArray(termoDados?.volumes) && termoDados.volumes.length ? termoDados.volumes : []);
-            mostrarPassoTermo(0);
+            restaurarRascunhoTermo();
+            mostrarPassoTermo(termoPassoAtual || 0);
             elementos.termoModal.style.display = 'flex';
             await aguardarProximoFrame();
             inicializarCanvasAssinatura();
             const assinaturaInicial = termoDados?.assinaturas?.inicial || termoDados?.assinaturaBase64 || '';
-            if (assinaturaInicial) {
+            if (assinaturaInicial && !termoAssinaturaDesenhada) {
                 restaurarAssinaturaTermo(assinaturaInicial);
             }
         }
@@ -7894,6 +8105,7 @@
             const progresso = ((indice + 1) / total) * 100;
             elementos.termoProgress.style.width = `${progresso}%`;
             elementos.termoProgressLabel.textContent = `Passo ${indice + 1} de ${total}`;
+            salvarRascunhoTermo();
         }
         function marcarCampoTermoInvalido(elemento) {
             const field = elemento.closest('.wizard-field') || elemento.closest('.wizard-chip')?.closest('.wizard-field');
@@ -8018,6 +8230,7 @@
                 adicionarVolumeTermo();
             }
             atualizarRemocaoVolumesTermo();
+            salvarRascunhoTermo();
         }
         function atualizarRemocaoVolumesTermo() {
             if (!elementos.termoVolumesList) return;
@@ -8074,6 +8287,7 @@
             } else {
                 campo.classList.add('invalid');
             }
+            salvarRascunhoTermo();
         }
         function restaurarAssinaturaTermo(base64) {
             if (!base64) return;
@@ -8123,6 +8337,7 @@
             termoDesenhandoAssinatura = false;
             termoAssinaturaDesenhada = true;
             elementos.termoAssinaturaCanvas?.closest('.wizard-field')?.classList.remove('invalid');
+            salvarRascunhoTermo();
         }
         function navegarPassoTermo(delta) {
             const novoIndice = termoPassoAtual + delta;
@@ -8213,6 +8428,7 @@
             ajustarObrigatoriedadeCamposPaciente(null);
             prepararVolumesTermo();
             limparAssinaturaTermo(true);
+            limparRascunhoTermo();
         }
         function criarControladorAssinaturaFinalizacao(canvas, field) {
             if (!canvas) return null;
