@@ -1048,6 +1048,13 @@
             gap: 10px;
             margin-bottom: 20px;
             flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .filters-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
         }
         .filter-btn {
             padding: 8px 16px;
@@ -1061,6 +1068,36 @@
             background-color: var(--primary-color);
             color: white;
             border-color: var(--primary-color);
+        }
+        .filter-search {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 14px;
+            background: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            box-shadow: 0 8px 20px var(--shadow-color);
+            flex: 1 1 280px;
+            max-width: 420px;
+            min-width: 240px;
+        }
+        .filter-search i {
+            color: var(--muted-color);
+            font-size: 1rem;
+        }
+        .filter-search input {
+            border: none;
+            outline: none;
+            width: 100%;
+            font-size: 0.95rem;
+            background: transparent;
+            color: var(--text-color);
+        }
+        .filter-search:focus-within {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 4px var(--focus-ring);
         }
         /* Tabela de Armários */
         .armarios-grid {
@@ -2470,11 +2507,17 @@
                 </div>
                 <!-- Filtros -->
                 <div class="filters">
-                    <button class="filter-btn active" data-filter="todos">Todos</button>
-                    <button class="filter-btn" data-filter="livre">Livre</button>
-                    <button class="filter-btn" data-filter="em-uso">Em uso</button>
-                    <button class="filter-btn" data-filter="proximo">Próximo do horário</button>
-                    <button class="filter-btn" data-filter="vencido">Vencido</button>
+                    <div class="filters-group" aria-label="Filtros por status">
+                        <button class="filter-btn active" data-filter="todos">Todos</button>
+                        <button class="filter-btn" data-filter="livre">Livre</button>
+                        <button class="filter-btn" data-filter="em-uso">Em uso</button>
+                        <button class="filter-btn" data-filter="proximo">Próximo do horário</button>
+                        <button class="filter-btn" data-filter="vencido">Vencido</button>
+                    </div>
+                    <div class="filter-search" aria-label="Busca rápida">
+                        <i class="fas fa-search" aria-hidden="true"></i>
+                        <input type="text" id="dashboard-search" placeholder="Buscar por paciente, prontuário ou armário" aria-label="Buscar por paciente, prontuário ou armário">
+                    </div>
                 </div>
                 <!-- Tabela de Armários -->
                 <div class="armarios-grid" id="armarios-container">
@@ -3294,6 +3337,7 @@
                 perfilAtual: 'geral',
                 unidadeAtual: 'todas',
                 filtrosSelecionados: ['todos'],
+                buscaDashboard: '',
                 paginaAtual: 'dashboard',
                 armarios: [],
                 armariosCarregados: false,
@@ -3847,6 +3891,7 @@
             visitaEstendidaGroup: document.getElementById('visita-estendida-group'),
             visitaEstendidaInput: document.getElementById('visita-estendida'),
             filterBtns: document.querySelectorAll('.filter-btn'),
+            dashboardSearch: document.getElementById('dashboard-search'),
             cardsCount: {
                 livres: document.getElementById('livres-count'),
                 emUso: document.getElementById('em-uso-count'),
@@ -4196,6 +4241,13 @@
         });
         const normalizarTexto = (valor) => (valor ?? '').toString().trim().toLowerCase();
         const normalizarIdentificador = (valor) => (valor ?? '').toString().trim();
+        const normalizarTextoBusca = (valor) => {
+            const texto = (valor ?? '').toString().trim().toLowerCase();
+            if (texto && typeof texto.normalize === 'function') {
+                return texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            }
+            return texto;
+        };
         function montarIdentificadoresArmario(armario) {
             if (!armario) {
                 return null;
@@ -5347,6 +5399,12 @@
                     renderizarArmarios();
                 });
             });
+            if (elementos.dashboardSearch) {
+                elementos.dashboardSearch.addEventListener('input', () => {
+                    estado.buscaDashboard = elementos.dashboardSearch.value || '';
+                    renderizarArmarios();
+                });
+            }
             atualizarBotoesFiltroDashboard();
             const padraoLocalLiberacao = obterDataHoraLocalPadrao();
             if (elementos.liberacaoDataInicio) {
@@ -5717,9 +5775,28 @@
             }
             estado.filtrosSelecionados = Array.from(conjunto);
         }
+        function armarioCorrespondeBusca(armario, termoBusca) {
+            const filtroNormalizado = normalizarTextoBusca(termoBusca);
+            if (!filtroNormalizado) {
+                return true;
+            }
+            const campos = [
+                armario.numero,
+                armario.prontuario,
+                armario.nomePaciente,
+                armario.nomeVisitante,
+                armario.unidade,
+                armario.acompanhante,
+                armario.responsavel
+            ];
+            return campos.some(campo => normalizarTextoBusca(campo).includes(filtroNormalizado));
+        }
         // Renderizar lista de armários no dashboard
         function renderizarArmarios() {
             elementos.armariosContainer.innerHTML = '';
+            if (elementos.dashboardSearch && elementos.dashboardSearch.value !== (estado.buscaDashboard || '')) {
+                elementos.dashboardSearch.value = estado.buscaDashboard || '';
+            }
             const perfil = estado.perfilAtual;
             const unidadeFiltro = estado.unidadeAtual;
             const perfilNormalizado = normalizarTexto(perfil);
@@ -5735,6 +5812,11 @@
             const filtrosAtivos = obterFiltrosAtivosDashboard();
             if (!filtrosAtivos.includes('todos')) {
                 armariosParaExibir = armariosParaExibir.filter(a => filtrosAtivos.includes(a.status));
+            }
+            // Aplicar busca por texto
+            const termoBusca = estado.buscaDashboard;
+            if (termoBusca) {
+                armariosParaExibir = armariosParaExibir.filter(armario => armarioCorrespondeBusca(armario, termoBusca));
             }
             armariosParaExibir.forEach(armario => {
                 const card = document.createElement('div');
