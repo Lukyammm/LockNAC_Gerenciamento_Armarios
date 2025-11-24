@@ -1110,6 +1110,20 @@
             display: flex;
             justify-content: flex-end;
         }
+        .armario-draft-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            background: color-mix(in srgb, var(--warning-color) 20%, transparent);
+            color: color-mix(in srgb, var(--warning-color) 80%, black 20%);
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+            box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--warning-color) 28%, transparent);
+        }
         .visita-estendida-tag {
             display: inline-flex;
             align-items: center;
@@ -3312,7 +3326,8 @@
             return estado.ocupacaoAcompanhantes;
         }
         const STORAGE_KEYS = {
-            sessaoUsuario: 'locknac_sessao_usuario'
+            sessaoUsuario: 'locknac_sessao_usuario',
+            rascunhosOcupacao: 'locknac_rascunhos_ocupacao'
         };
         const SESSAO_TTL_MS = 1000 * 60 * 60 * 8; // 8 horas
         const AVATAR_OPTIONS = [
@@ -3350,6 +3365,7 @@
             }
         ];
         let armazenamentoLocalDisponivel;
+        let rascunhosOcupacaoRestaurados = false;
         function obterArmazenamentoLocal() {
             if (armazenamentoLocalDisponivel !== undefined) {
                 return armazenamentoLocalDisponivel;
@@ -3426,6 +3442,61 @@
                 salvarSessaoUsuario(usuarioAtual);
             } else {
                 limparSessaoUsuario();
+            }
+        }
+        function rascunhoOcupacaoTemDados(rascunho) {
+            if (!rascunho) return false;
+            return ['paciente', 'prontuario', 'acompanhante'].some(campo => (rascunho[campo] || '').toString().trim());
+        }
+        function persistirRascunhosOcupacaoLocal() {
+            const storage = obterArmazenamentoLocal();
+            if (!storage) return;
+            try {
+                const estadoOcupacao = obterEstadoOcupacaoAcompanhantes();
+                const rascunhosOriginais = estadoOcupacao.rascunhos || {};
+                const rascunhosFiltrados = {};
+                Object.entries(rascunhosOriginais).forEach(([id, valores]) => {
+                    if (rascunhoOcupacaoTemDados(valores)) {
+                        rascunhosFiltrados[id] = {
+                            paciente: (valores.paciente || '').toString(),
+                            prontuario: (valores.prontuario || '').toString(),
+                            acompanhante: (valores.acompanhante || '').toString()
+                        };
+                    }
+                });
+                estadoOcupacao.rascunhos = rascunhosFiltrados;
+                storage.setItem(STORAGE_KEYS.rascunhosOcupacao, JSON.stringify({ rascunhos: rascunhosFiltrados }));
+            } catch (erro) {
+                console.warn('Não foi possível salvar os rascunhos de ocupação localmente:', erro);
+            }
+        }
+        function restaurarRascunhosOcupacaoLocal() {
+            if (rascunhosOcupacaoRestaurados) return;
+            const storage = obterArmazenamentoLocal();
+            if (!storage) return;
+            try {
+                const dados = storage.getItem(STORAGE_KEYS.rascunhosOcupacao);
+                if (!dados) return;
+                const json = JSON.parse(dados);
+                const rascunhosRestaurados = {};
+                Object.entries(json?.rascunhos || {}).forEach(([id, valores]) => {
+                    if (!id) return;
+                    rascunhosRestaurados[id] = {
+                        paciente: (valores?.paciente || '').toString(),
+                        prontuario: (valores?.prontuario || '').toString(),
+                        acompanhante: (valores?.acompanhante || '').toString()
+                    };
+                });
+                const estadoOcupacao = obterEstadoOcupacaoAcompanhantes();
+                estadoOcupacao.rascunhos = rascunhosRestaurados;
+                rascunhosOcupacaoRestaurados = true;
+            } catch (erro) {
+                console.warn('Falha ao restaurar rascunhos de ocupação:', erro);
+                try {
+                    storage.removeItem(STORAGE_KEYS.rascunhosOcupacao);
+                } catch (erroRemocao) {
+                    console.warn('Não foi possível limpar rascunhos inválidos do armazenamento local:', erroRemocao);
+                }
             }
         }
         function popularAvataresPadrao() {
@@ -5159,6 +5230,44 @@
                     await submeterOcupacaoAcompanhantes();
                 });
             }
+            if (elementos.ocupacaoArmario) {
+                elementos.ocupacaoArmario.addEventListener('change', () => {
+                    const estadoOcupacao = obterEstadoOcupacaoAcompanhantes();
+                    estadoOcupacao.armarioSelecionado = elementos.ocupacaoArmario.value || '';
+                    const rascunho = estadoOcupacao.armarioSelecionado
+                        ? obterRascunhoOcupacaoArmario(estadoOcupacao.armarioSelecionado)
+                        : null;
+                    if (rascunho) {
+                        if (elementos.ocupacaoPaciente) elementos.ocupacaoPaciente.value = rascunho.paciente || '';
+                        if (elementos.ocupacaoProntuario) elementos.ocupacaoProntuario.value = rascunho.prontuario || '';
+                        if (elementos.ocupacaoAcompanhante) elementos.ocupacaoAcompanhante.value = rascunho.acompanhante || '';
+                    } else {
+                        if (elementos.ocupacaoPaciente) elementos.ocupacaoPaciente.value = '';
+                        if (elementos.ocupacaoProntuario) elementos.ocupacaoProntuario.value = '';
+                        if (elementos.ocupacaoAcompanhante) elementos.ocupacaoAcompanhante.value = '';
+                    }
+                });
+            }
+            const atualizarRascunhoFormularioOcupacao = (campo, valor) => {
+                const idSelecionado = elementos.ocupacaoArmario?.value?.trim();
+                if (!idSelecionado) return;
+                atualizarRascunhoOcupacao(idSelecionado, campo, valor || '');
+            };
+            if (elementos.ocupacaoPaciente) {
+                elementos.ocupacaoPaciente.addEventListener('input', (evento) => {
+                    atualizarRascunhoFormularioOcupacao('paciente', evento.target.value);
+                });
+            }
+            if (elementos.ocupacaoProntuario) {
+                elementos.ocupacaoProntuario.addEventListener('input', (evento) => {
+                    atualizarRascunhoFormularioOcupacao('prontuario', evento.target.value);
+                });
+            }
+            if (elementos.ocupacaoAcompanhante) {
+                elementos.ocupacaoAcompanhante.addEventListener('input', (evento) => {
+                    atualizarRascunhoFormularioOcupacao('acompanhante', evento.target.value);
+                });
+            }
             if (elementos.ocupacaoFiltro) {
                 elementos.ocupacaoFiltro.addEventListener('input', debounce(() => {
                     const estadoOcupacao = obterEstadoOcupacaoAcompanhantes();
@@ -5429,6 +5538,8 @@
                 if (armario.visitaEstendida) {
                     card.classList.add('visita-estendida');
                 }
+                const rascunho = estado.ocupacaoAcompanhantes?.rascunhos?.[armario.id];
+                const rascunhoAtivo = normalizarTexto(armario.tipo) === 'acompanhante' && rascunhoOcupacaoTemDados(rascunho);
                 let detailsHTML = '';
                 if (armario.status === 'livre') {
                     detailsHTML += '<p>Disponível para uso</p>';
@@ -5467,6 +5578,7 @@
                         <div class="armario-number">${armario.numero}</div>
                         <div class="armario-header-right">
                             ${destaqueVisita}
+                            ${rascunhoAtivo ? '<span class="armario-draft-badge" title="Pré-cadastro incompleto nesta estação">Incompleto</span>' : ''}
                             ${statusHtml}
                         </div>
                     </div>
@@ -6024,6 +6136,7 @@
                 .sort((a, b) => a.numero.localeCompare(b.numero, 'pt-BR', { numeric: true }));
         }
         function obterRascunhoOcupacaoArmario(idArmario) {
+            restaurarRascunhosOcupacaoLocal();
             const estadoOcupacao = obterEstadoOcupacaoAcompanhantes();
             if (!estadoOcupacao.rascunhos) {
                 estadoOcupacao.rascunhos = {};
@@ -6041,11 +6154,19 @@
             if (!idArmario || !campo) return;
             const rascunho = obterRascunhoOcupacaoArmario(idArmario);
             rascunho[campo] = valor;
+            persistirRascunhosOcupacaoLocal();
+            if (estado.paginaAtual === 'dashboard') {
+                renderizarArmarios();
+            }
         }
         function limparRascunhoOcupacao(idArmario) {
             const estadoOcupacao = obterEstadoOcupacaoAcompanhantes();
             if (estadoOcupacao.rascunhos && estadoOcupacao.rascunhos[idArmario]) {
                 delete estadoOcupacao.rascunhos[idArmario];
+                persistirRascunhosOcupacaoLocal();
+                if (estado.paginaAtual === 'dashboard') {
+                    renderizarArmarios();
+                }
             }
         }
         function coletarDadosRascunho(idArmario) {
@@ -6123,6 +6244,7 @@
             if (recarregarArmarios || !estado.armariosCarregados) {
                 await carregarArmarios();
             }
+            restaurarRascunhosOcupacaoLocal();
             const estadoOcupacao = obterEstadoOcupacaoAcompanhantes();
             if (elementos.ocupacaoFiltro && elementos.ocupacaoFiltro.value !== estadoOcupacao.filtro) {
                 elementos.ocupacaoFiltro.value = estadoOcupacao.filtro || '';
@@ -6135,6 +6257,7 @@
                         delete estadoOcupacao.rascunhos[id];
                     }
                 });
+                persistirRascunhosOcupacaoLocal();
             }
             atualizarSelectOcupacaoAcompanhantes(armariosLivres);
             renderizarTabelaOcupacaoAcompanhantes(armariosLivres);
@@ -6147,6 +6270,7 @@
             const estadoOcupacao = obterEstadoOcupacaoAcompanhantes();
             estadoOcupacao.armarioSelecionado = idArmario;
             elementos.ocupacaoArmario.focus();
+            elementos.ocupacaoArmario.dispatchEvent(new Event('change'));
         }
         async function registrarOcupacaoArmario({ armarioId, dadosCadastro = {}, botao = null, silencioso = false, recarregarApos = true }) {
             if (!perfilAtualEhAdmin()) {
