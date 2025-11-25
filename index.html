@@ -67,6 +67,10 @@
             display: flex;
             min-height: 100vh;
         }
+        body.modal-open {
+            overflow: hidden;
+            touch-action: none;
+        }
         /* Textura de cédula */
         body::before {
             content: "";
@@ -3563,6 +3567,21 @@
             rascunhoArmario: 'locknac_rascunho_armario',
             rascunhoTermo: 'locknac_rascunho_termo'
         };
+        const travaRolagem = {
+            contador: 0,
+            aplicar() {
+                this.contador += 1;
+                document.body.classList.add('modal-open');
+            },
+            remover() {
+                if (this.contador > 0) {
+                    this.contador -= 1;
+                }
+                if (this.contador === 0) {
+                    document.body.classList.remove('modal-open');
+                }
+            }
+        };
         const SESSAO_TTL_MS = 1000 * 60 * 60 * 8; // 8 horas
         const AVATAR_OPTIONS = [
             {
@@ -3973,6 +3992,9 @@
             if (!elementos.avatarModal || !elementos.avatarModalBackdrop) {
                 return;
             }
+            if (!avatarModalAberto()) {
+                travaRolagem.aplicar();
+            }
             elementos.avatarModalBackdrop.classList.remove('hidden');
             elementos.avatarModal.classList.remove('hidden');
             elementos.avatarModalBackdrop.setAttribute('aria-hidden', 'false');
@@ -3989,6 +4011,9 @@
         function fecharModalAvatar({ focusTrigger = true } = {}) {
             if (!elementos.avatarModal || !elementos.avatarModalBackdrop) {
                 return;
+            }
+            if (avatarModalAberto()) {
+                travaRolagem.remover();
             }
             elementos.avatarModal.classList.add('hidden');
             elementos.avatarModalBackdrop.classList.add('hidden');
@@ -7231,6 +7256,9 @@
             document.getElementById('acesso-visitantes').checked = Boolean(usuario.acessoVisitantes);
             document.getElementById('acesso-acompanhantes').checked = Boolean(usuario.acessoAcompanhantes);
             renderizarOpcoesUnidadesFormulario(usuario.unidades);
+            if (elementos.usuarioModal.style.display !== 'flex') {
+                travaRolagem.aplicar();
+            }
             elementos.usuarioModal.style.display = 'flex';
         }
         async function confirmarExclusaoUsuario(id, botao) {
@@ -7584,6 +7612,9 @@
                 elementos.armarioForm.dataset.tipo = armario.tipo;
                 elementos.armarioForm.dataset.numero = armario.numero;
                 restaurarRascunhoArmario();
+                if (elementos.armarioModal.style.display !== 'flex') {
+                    travaRolagem.aplicar();
+                }
                 elementos.armarioModal.style.display = 'flex';
             } else {
                 const ehContingencia = armarioEhContingencia(armario);
@@ -8058,14 +8089,23 @@
             if (elementos.usuarioUnidades) {
                 renderizarOpcoesUnidadesFormulario();
             }
+            if (elementos.usuarioModal.style.display !== 'flex') {
+                travaRolagem.aplicar();
+            }
             elementos.usuarioModal.style.display = 'flex';
         }
         // Fechar modais
         function fecharModalArmario() {
             limparRascunhoArmario();
+            if (elementos.armarioModal.style.display === 'flex') {
+                travaRolagem.remover();
+            }
             elementos.armarioModal.style.display = 'none';
         }
         function fecharModalUsuario() {
+            if (elementos.usuarioModal.style.display === 'flex') {
+                travaRolagem.remover();
+            }
             elementos.usuarioModal.style.display = 'none';
             if (elementos.usuarioForm) {
                 elementos.usuarioForm.dataset.id = '';
@@ -8590,6 +8630,9 @@
             prepararVolumesTermo(Array.isArray(termoDados?.volumes) && termoDados.volumes.length ? termoDados.volumes : []);
             restaurarRascunhoTermo();
             mostrarPassoTermo(termoPassoAtual || 0);
+            if (elementos.termoModal.style.display !== 'flex') {
+                travaRolagem.aplicar();
+            }
             elementos.termoModal.style.display = 'flex';
             await aguardarProximoFrame();
             inicializarCanvasAssinatura();
@@ -8921,6 +8964,9 @@
             }
         }
         function fecharTermoModal() {
+            if (elementos.termoModal.style.display === 'flex') {
+                travaRolagem.remover();
+            }
             elementos.termoModal.style.display = 'none';
             termoArmarioAtual = null;
             termoPreCadastro = null;
@@ -9111,12 +9157,18 @@
             const padraoLocal = obterDataHoraLocalPadrao();
             elementos.movData.value = padraoLocal.data;
             elementos.movHora.value = padraoLocal.hora;
+            if (elementos.movimentacaoModal.style.display !== 'flex') {
+                travaRolagem.aplicar();
+            }
             elementos.movimentacaoModal.style.display = 'flex';
             mostrarLoadingMovimentacoes();
             await renderizarMovimentacoes(id);
         }
 
         function fecharMovimentacaoModal() {
+            if (elementos.movimentacaoModal.style.display === 'flex') {
+                travaRolagem.remover();
+            }
             elementos.movimentacaoModal.style.display = 'none';
             movimentacaoArmarioAtual = null;
         }
