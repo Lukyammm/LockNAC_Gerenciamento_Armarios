@@ -1483,6 +1483,10 @@
         #tabela-visitantes tbody tr.visita-estendida td {
             border-bottom: 1px solid var(--extended-border-color);
         }
+        #tabela-visitantes th:nth-child(6),
+        #tabela-visitantes td:nth-child(6) {
+            white-space: nowrap;
+        }
         .btn-small {
             padding: 5px 10px;
             font-size: 0.8rem;
@@ -7402,17 +7406,17 @@
                 return;
             }
 
-            const resultado = await Swal.fire({
-                title: 'Registrar contingência',
-                html: `
-                    <div class="swal-form-grid">
-                        <div class="swal-form-group">
-                            <label for="contingencia-acompanhante">Acompanhante</label>
-                            <input id="contingencia-acompanhante" class="swal2-input" placeholder="Nome do acompanhante" required>
-                        </div>
+                const resultado = await Swal.fire({
+                    title: 'Registrar contingência',
+                    html: `
+                        <div class="swal-form-grid">
                         <div class="swal-form-group">
                             <label for="contingencia-paciente">Paciente</label>
                             <input id="contingencia-paciente" class="swal2-input" placeholder="Nome do paciente" required>
+                        </div>
+                        <div class="swal-form-group">
+                            <label for="contingencia-acompanhante">Acompanhante</label>
+                            <input id="contingencia-acompanhante" class="swal2-input" placeholder="Nome do acompanhante" required>
                         </div>
                         <div class="swal-form-group">
                             <label for="contingencia-prontuario">Prontuário</label>
@@ -9098,16 +9102,23 @@
             return mapa[tipo] || tipo;
         }
         function aplicarMascaraLeito(valor) {
-            const digitos = (valor || '').replace(/\D/g, '').slice(0, 5);
+            const texto = (valor || '').toString();
+            const possuiPrefixoLetra = /^[A-Za-z]/.test(texto);
+            const somenteAlfanumerico = texto.replace(/[^A-Za-z0-9]/g, '');
+
+            const prefixo = possuiPrefixoLetra ? somenteAlfanumerico.charAt(0).toUpperCase() : '';
+            const digitos = (possuiPrefixoLetra ? somenteAlfanumerico.slice(1) : somenteAlfanumerico).replace(/\D/g, '');
+
             const primeiraParte = digitos.slice(0, 3);
-            const segundaParte = digitos.slice(3, 5);
-            let formatado = primeiraParte;
-            if (digitos.length >= 3) {
-                formatado = `${primeiraParte}/`;
+            const restante = digitos.slice(3);
+
+            let formatado = prefixo ? `${prefixo}-` : '';
+            formatado += primeiraParte;
+
+            if (restante) {
+                formatado += `/${restante}`;
             }
-            if (segundaParte) {
-                formatado += segundaParte;
-            }
+
             return formatado;
         }
         function aplicarMascaraLeitoCampo(campo) {
