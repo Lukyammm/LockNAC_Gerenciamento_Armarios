@@ -6686,6 +6686,7 @@
                     nomeVisitante: (dadosCadastro.acompanhante || '').trim(),
                     nomePaciente: (dadosCadastro.paciente || '').trim(),
                     prontuario: (dadosCadastro.prontuario || '').trim(),
+                    observacoes: (dadosCadastro.observacoes || '').trim(),
                     leito: '',
                     volumes: 0,
                     whatsapp: '',
@@ -7328,6 +7329,10 @@
                             <label for="contingencia-prontuario">Prontuário</label>
                             <input id="contingencia-prontuario" class="swal2-input" placeholder="Prontuário" aria-required="true">
                         </div>
+                        <div class="swal-form-group">
+                            <label for="contingencia-observacoes">Observações</label>
+                            <textarea id="contingencia-observacoes" class="swal2-textarea" placeholder="Observações da contingência"></textarea>
+                        </div>
                     </div>
                 `,
                 focusConfirm: false,
@@ -7339,11 +7344,12 @@
                     const acompanhante = popup.querySelector('#contingencia-acompanhante').value.trim();
                     const paciente = popup.querySelector('#contingencia-paciente').value.trim();
                     const prontuario = popup.querySelector('#contingencia-prontuario').value.trim();
+                    const observacoes = popup.querySelector('#contingencia-observacoes').value.trim();
                     if (!acompanhante || !paciente) {
                         Swal.showValidationMessage('Informe acompanhante e paciente.');
                         return false;
                     }
-                    return { acompanhante, paciente, prontuario };
+                    return { acompanhante, paciente, prontuario, observacoes };
                 }
             });
 
@@ -7355,6 +7361,7 @@
                 nomeAcompanhante: resultado.value.acompanhante,
                 nomePaciente: resultado.value.paciente,
                 prontuario: resultado.value.prontuario,
+                observacoes: resultado.value.observacoes,
                 unidade: estado.unidadeAtual === 'todas' ? '' : estado.unidadeAtual,
                 usuarioResponsavel: obterDescricaoResponsavelAtual()
             };
@@ -7377,6 +7384,7 @@
                     numero: normalizarIdentificador(novoArmario.numero),
                     unidade: novoArmario.unidade ? novoArmario.unidade.toString().trim() : '',
                     prontuario: novoArmario.prontuario ? novoArmario.prontuario.toString().trim() : '',
+                    observacoes: novoArmario.observacoes ? novoArmario.observacoes.toString().trim() : '',
                     visitaEstendida: Boolean(novoArmario.visitaEstendida),
                     ehContingencia: true,
                     status: 'contingencia'
@@ -7619,7 +7627,8 @@
             const dadosCadastro = {
                 paciente: armarioContingencia.nomePaciente || '',
                 prontuario: armarioContingencia.prontuario || '',
-                acompanhante: armarioContingencia.nomeVisitante || ''
+                acompanhante: armarioContingencia.nomeVisitante || '',
+                observacoes: armarioContingencia.observacoes || ''
             };
 
             const finalizar = mostrarOverlayCarregamento('Movendo contingência...');

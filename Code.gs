@@ -161,6 +161,7 @@ var CABECALHOS_WHATSAPP = ['whatsapp', 'wpp', 'whats app', 'whatsap', 'zap'];
 var CABECALHOS_NOME_VISITANTE = ['nome visitante', 'visitante', 'nome do visitante'];
 var CABECALHOS_NOME_ACOMPANHANTE = ['nome acompanhante', 'acompanhante', 'nome do acompanhante', 'responsavel', 'responsável'];
 var CABECALHOS_VISITA_ESTENDIDA = ['visita estendida', 'visita extendida', 'visita expandida'];
+var CABECALHOS_OBSERVACOES = ['observacoes', 'observações', 'observacao', 'observação', 'obs'];
 
 function converterParaBoolean(valor) {
   if (valor === true || valor === false) {
@@ -1388,6 +1389,9 @@ function getArmariosFromSheet(sheetName, tipo, termosMap) {
     estrutura = garantirColunaVisitaEstendida(sheet, estrutura);
   }
   estrutura = garantirColunaProntuario(sheet, estrutura);
+  if (!isVisitante) {
+    estrutura = garantirColunaObservacoesAcompanhantes(sheet, estrutura);
+  }
   var totalLinhas = sheet.getLastRow() - 1;
   var totalColunas = estrutura.ultimaColuna || (isVisitante ? 14 : 12);
   var dados = sheet.getRange(2, 1, totalLinhas, totalColunas).getValues();
@@ -1416,6 +1420,7 @@ function getArmariosFromSheet(sheetName, tipo, termosMap) {
   if (whatsappIndex === null || whatsappIndex === undefined) {
     whatsappIndex = isVisitante ? 12 : 9;
   }
+  var observacoesIndex = obterIndiceColuna(estrutura, CABECALHOS_OBSERVACOES, null);
   var visitaEstendidaIndex = isVisitante
     ? obterIndiceColuna(estrutura, CABECALHOS_VISITA_ESTENDIDA, null)
     : -1;
@@ -1483,6 +1488,7 @@ function getArmariosFromSheet(sheetName, tipo, termosMap) {
       unidade: unidadeIndex !== null && unidadeIndex !== undefined ? (row[unidadeIndex] || '') : '',
       termoAplicado: termoIndex !== null && termoIndex !== undefined ? converterParaBoolean(row[termoIndex]) : false,
       whatsapp: whatsappIndex !== null && whatsappIndex !== undefined ? (row[whatsappIndex] || '') : '',
+      observacoes: observacoesIndex !== null && observacoesIndex !== undefined ? (row[observacoesIndex] || '') : '',
       ehContingencia: ehContingencia
     };
 
@@ -1597,14 +1603,17 @@ function cadastrarArmario(armarioData) {
       return { success: false, error: 'Nenhum armário cadastrado' };
     }
 
-    var estrutura = obterEstruturaPlanilha(sheet);
-    if (sheetName === 'Visitantes') {
-      estrutura = garantirColunaVisitaEstendida(sheet, estrutura);
-    }
-    estrutura = garantirColunaProntuario(sheet, estrutura);
-    var totalColunas = estrutura.ultimaColuna || (sheetName === 'Visitantes' ? 14 : 12);
-    var linhaPlanilha = -1;
-    var linhaAtual = null;
+  var estrutura = obterEstruturaPlanilha(sheet);
+  if (sheetName === 'Visitantes') {
+    estrutura = garantirColunaVisitaEstendida(sheet, estrutura);
+  }
+  estrutura = garantirColunaProntuario(sheet, estrutura);
+  if (sheetName === 'Acompanhantes') {
+    estrutura = garantirColunaObservacoesAcompanhantes(sheet, estrutura);
+  }
+  var totalColunas = estrutura.ultimaColuna || (sheetName === 'Visitantes' ? 14 : 12);
+  var linhaPlanilha = -1;
+  var linhaAtual = null;
     var idParametroBruto = armarioData.idPlanilha !== undefined && armarioData.idPlanilha !== ''
       ? armarioData.idPlanilha
       : armarioData.id;
@@ -1659,16 +1668,17 @@ function cadastrarArmario(armarioData) {
     var responsavelRegistro = determinarResponsavelRegistro(armarioData.usuarioResponsavel);
     var horaInicio = dataHoraAtual.horaCurta;
     var dataRegistro = dataHoraAtual.dataHoraIso;
-    var volumes = parseInt(armarioData.volumes, 10);
-    if (isNaN(volumes) || volumes < 0) {
-      volumes = 0;
-    }
-    var whatsapp = armarioData.whatsapp !== null && armarioData.whatsapp !== undefined
-      ? armarioData.whatsapp.toString().trim()
-      : '';
-    var numeroArmario = linhaAtual[numeroIndex];
-    var unidadeAtual = obterValorLinha(linhaAtual, estrutura, 'unidade', '');
-    var novaLinha = linhaAtual.slice();
+  var volumes = parseInt(armarioData.volumes, 10);
+  if (isNaN(volumes) || volumes < 0) {
+    volumes = 0;
+  }
+  var whatsapp = armarioData.whatsapp !== null && armarioData.whatsapp !== undefined
+    ? armarioData.whatsapp.toString().trim()
+    : '';
+  var observacoes = armarioData.observacoes ? armarioData.observacoes.toString().trim() : '';
+  var numeroArmario = linhaAtual[numeroIndex];
+  var unidadeAtual = obterValorLinha(linhaAtual, estrutura, 'unidade', '');
+  var novaLinha = linhaAtual.slice();
     while (novaLinha.length < totalColunas) {
       novaLinha.push('');
     }
@@ -1692,6 +1702,7 @@ function cadastrarArmario(armarioData) {
     definirValorLinha(novaLinha, estrutura, 'unidade', unidadeAtual);
     definirValorLinha(novaLinha, estrutura, CABECALHOS_WHATSAPP, whatsapp);
     definirValorLinha(novaLinha, estrutura, 'termo aplicado', false);
+    definirValorLinha(novaLinha, estrutura, CABECALHOS_OBSERVACOES, observacoes);
 
     sheet.getRange(linhaPlanilha, 1, 1, totalColunas).setValues([novaLinha]);
 
@@ -1718,7 +1729,8 @@ function cadastrarArmario(armarioData) {
       armarioData.tipo,
       unidadeAtual,
       whatsapp,
-      responsavelRegistro
+      responsavelRegistro,
+      observacoes
     ];
 
     historicoSheet.getRange(proximaLinhaHistorico, 1, 1, historicoLinha.length).setValues([historicoLinha]);
@@ -1774,6 +1786,7 @@ function registrarContingencia(dados) {
     garantirEstruturaHistorico(historicoSheet);
 
     var estrutura = garantirColunaProntuario(sheet, obterEstruturaPlanilha(sheet));
+    estrutura = garantirColunaObservacoesAcompanhantes(sheet, estrutura);
     var totalColunas = estrutura.ultimaColuna || 12;
     var totalLinhas = sheet.getLastRow();
     var numeroIndex = obterIndiceColuna(estrutura, 'numero', 1);
@@ -1811,6 +1824,7 @@ function registrarContingencia(dados) {
     var nomeChavesCadastro = CABECALHOS_NOME_ACOMPANHANTE;
     var volumes = parseInt(dados.volumes, 10);
     volumes = isNaN(volumes) || volumes < 0 ? 0 : volumes;
+    var observacoes = dados.observacoes ? dados.observacoes.toString().trim() : '';
 
     var linhaBase = linhaDisponivel > -1
       ? sheet.getRange(linhaPlanilha, 1, 1, totalColunas).getValues()[0]
@@ -1830,6 +1844,7 @@ function registrarContingencia(dados) {
     definirValorLinha(linhaBase, estrutura, 'unidade', dados.unidade || '');
     definirValorLinha(linhaBase, estrutura, CABECALHOS_WHATSAPP, dados.whatsapp || '');
     definirValorLinha(linhaBase, estrutura, 'termo aplicado', false);
+    definirValorLinha(linhaBase, estrutura, CABECALHOS_OBSERVACOES, observacoes);
 
     sheet.getRange(linhaPlanilha, 1, 1, totalColunas).setValues([linhaBase]);
 
@@ -1854,7 +1869,8 @@ function registrarContingencia(dados) {
       'acompanhante',
       dados.unidade || '',
       dados.whatsapp || '',
-      responsavel
+      responsavel,
+      observacoes
     ];
 
     historicoSheet.getRange(proximaLinhaHistorico, 1, 1, historicoLinha.length).setValues([historicoLinha]);
@@ -1879,6 +1895,7 @@ function registrarContingencia(dados) {
         dataRegistro: dataHoraAtual.dataHoraIso,
         unidade: dados.unidade || '',
         whatsapp: dados.whatsapp || '',
+        observacoes: observacoes,
         visitaEstendida: false,
         termoAplicado: false,
         termoFinalizado: false,
@@ -2023,6 +2040,10 @@ function liberarArmario(id, tipo, numero, usuarioResponsavel) {
     if (!ehAcompanhante) {
       estrutura = garantirColunaVisitaEstendida(sheet, estrutura);
     }
+    estrutura = garantirColunaProntuario(sheet, estrutura);
+    if (ehAcompanhante) {
+      estrutura = garantirColunaObservacoesAcompanhantes(sheet, estrutura);
+    }
     var totalColunas = estrutura.ultimaColuna || (sheetName === 'Visitantes' ? 14 : 12);
     var totalLinhas = sheet.getLastRow();
     if (totalLinhas <= 1) {
@@ -2095,6 +2116,7 @@ function liberarArmario(id, tipo, numero, usuarioResponsavel) {
     definirValorLinha(novaLinha, estrutura, CABECALHOS_WHATSAPP, '');
     definirValorLinha(novaLinha, estrutura, 'unidade', unidadeAtual);
     definirValorLinha(novaLinha, estrutura, 'termo aplicado', false);
+    definirValorLinha(novaLinha, estrutura, CABECALHOS_OBSERVACOES, '');
 
     sheet.getRange(linhaPlanilha, 1, 1, totalColunas).setValues([novaLinha]);
 
@@ -2599,7 +2621,7 @@ function getHistorico(tipo) {
       garantirEstruturaHistorico(sheet);
 
       var totalLinhasDados = sheet.getLastRow() - 1;
-      var totalColunasDados = Math.max(sheet.getLastColumn(), 14);
+      var totalColunasDados = Math.max(sheet.getLastColumn(), 15);
       var data = sheet.getRange(2, 1, totalLinhasDados, totalColunasDados).getValues();
       var historico = [];
 
@@ -2619,7 +2641,8 @@ function getHistorico(tipo) {
             tipo: row[10],
             unidade: row[11],
             whatsapp: row[12] || '',
-            usuario: row[13] || ''
+            usuario: row[13] || '',
+            observacoes: row[14] || ''
           });
         }
       });
@@ -4345,7 +4368,7 @@ function garantirEstruturaHistorico(sheet) {
   if (!sheet) {
     return 13;
   }
-  var minimoColunas = 14;
+  var minimoColunas = 15;
   var totalColunas = sheet.getLastColumn();
   if (totalColunas < minimoColunas) {
     sheet.insertColumnsAfter(totalColunas, minimoColunas - totalColunas);
@@ -4354,6 +4377,9 @@ function garantirEstruturaHistorico(sheet) {
   var cabecalhos = sheet.getRange(1, 1, 1, Math.max(totalColunas, minimoColunas)).getValues()[0];
   if (!cabecalhos[13]) {
     sheet.getRange(1, 14).setValue('Usuário');
+  }
+  if (!cabecalhos[14]) {
+    sheet.getRange(1, 15).setValue('Observações');
   }
   return Math.max(totalColunas, minimoColunas);
 }
@@ -4398,6 +4424,31 @@ function garantirColunaProntuario(sheet, estrutura) {
   var ultimaColuna = estruturaAtual.ultimaColuna || sheet.getLastColumn();
   sheet.insertColumnAfter(ultimaColuna);
   sheet.getRange(1, ultimaColuna + 1).setValue('Prontuário');
+
+  return obterEstruturaPlanilha(sheet);
+}
+
+function garantirColunaObservacoesAcompanhantes(sheet, estrutura) {
+  if (!sheet) {
+    return estrutura;
+  }
+
+  var estruturaAtual = estrutura || obterEstruturaPlanilha(sheet);
+  var indiceObservacoes = obterIndiceColuna(estruturaAtual, CABECALHOS_OBSERVACOES, null);
+
+  if (indiceObservacoes !== null && indiceObservacoes !== undefined) {
+    return estruturaAtual;
+  }
+
+  var indiceReferencia = obterIndiceColuna(estruturaAtual, 'termo aplicado', null);
+  var ultimaColuna = estruturaAtual.ultimaColuna || sheet.getLastColumn();
+  if (indiceReferencia !== null && indiceReferencia !== undefined) {
+    sheet.insertColumnAfter(indiceReferencia + 1);
+    sheet.getRange(1, indiceReferencia + 2).setValue('Observações');
+  } else {
+    sheet.insertColumnAfter(ultimaColuna);
+    sheet.getRange(1, ultimaColuna + 1).setValue('Observações');
+  }
 
   return obterEstruturaPlanilha(sheet);
 }
