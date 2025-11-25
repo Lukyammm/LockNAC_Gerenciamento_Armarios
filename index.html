@@ -1100,6 +1100,33 @@
             border-color: var(--primary-color);
             box-shadow: 0 0 0 4px var(--focus-ring);
         }
+        .contingencia-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .btn-contingencia {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            border-radius: 12px;
+            border: 1px dashed color-mix(in srgb, var(--primary-color) 30%, var(--border-color));
+            background: color-mix(in srgb, var(--primary-color) 10%, var(--surface-color) 90%);
+            color: color-mix(in srgb, var(--primary-color) 75%, var(--dark-color) 25%);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 10px 22px var(--shadow-color);
+            white-space: nowrap;
+        }
+        .btn-contingencia i {
+            color: color-mix(in srgb, var(--primary-color) 80%, var(--dark-color) 20%);
+        }
+        .btn-contingencia:hover, .btn-contingencia:focus-visible {
+            background: color-mix(in srgb, var(--primary-color) 16%, var(--surface-color) 84%);
+            border-color: var(--primary-color);
+            transform: translateY(-1px);
+        }
         /* Tabela de Armários */
         .armarios-grid {
             display: grid;
@@ -1120,6 +1147,30 @@
             background: var(--em-uso-card-bg);
             color: var(--em-uso-text);
             box-shadow: 0 14px 32px color-mix(in srgb, var(--em-uso-border-color) 30%, transparent);
+        }
+        .armario-card.contingencia {
+            border-left-color: color-mix(in srgb, var(--dark-color) 25%, var(--primary-color) 75%);
+            background: repeating-linear-gradient(135deg,
+                color-mix(in srgb, var(--surface-color) 94%, var(--primary-color) 6%) 0,
+                color-mix(in srgb, var(--surface-color) 94%, var(--primary-color) 6%) 10px,
+                color-mix(in srgb, var(--surface-color) 90%, var(--primary-color) 10%) 10px,
+                color-mix(in srgb, var(--surface-color) 90%, var(--primary-color) 10%) 20px);
+            background-blend-mode: multiply;
+            position: relative;
+            overflow: hidden;
+        }
+        .armario-card.contingencia::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background-image: radial-gradient(circle at 20% 20%, rgba(0,0,0,0.06) 1px, transparent 0),
+                radial-gradient(circle at 80% 60%, rgba(0,0,0,0.04) 1px, transparent 0);
+            background-size: 18px 18px, 22px 22px;
+            opacity: 0.4;
+            pointer-events: none;
+        }
+        .armario-card.contingencia .armario-number {
+            color: color-mix(in srgb, var(--primary-dark) 70%, white 30%);
         }
         .armario-card.proximo {
             border-left-color: var(--warning-color);
@@ -1221,6 +1272,11 @@
         .status-vencido {
             background-color: color-mix(in srgb, var(--danger-color) 18%, transparent);
             color: var(--danger-color);
+        }
+        .status-contingencia {
+            background-color: color-mix(in srgb, var(--primary-color) 14%, transparent);
+            color: color-mix(in srgb, var(--primary-dark) 82%, var(--dark-color) 18%);
+            border: 1px dashed color-mix(in srgb, var(--primary-color) 45%, transparent);
         }
         .armario-details {
             font-size: 0.9rem;
@@ -2514,10 +2570,17 @@
                         <button class="filter-btn" data-filter="em-uso">Em uso</button>
                         <button class="filter-btn" data-filter="proximo">Próximo do horário</button>
                         <button class="filter-btn" data-filter="vencido">Vencido</button>
+                        <button class="filter-btn" data-filter="contingencia">Contingência</button>
                     </div>
-                    <div class="filter-search" aria-label="Busca rápida">
-                        <i class="fas fa-search" aria-hidden="true"></i>
-                        <input type="text" id="dashboard-search" placeholder="Buscar por paciente, prontuário ou armário" aria-label="Buscar por paciente, prontuário ou armário">
+                    <div class="contingencia-actions">
+                        <div class="filter-search" aria-label="Busca rápida">
+                            <i class="fas fa-search" aria-hidden="true"></i>
+                            <input type="text" id="dashboard-search" placeholder="Buscar por paciente, prontuário ou armário" aria-label="Buscar por paciente, prontuário ou armário">
+                        </div>
+                        <button class="btn-contingencia" id="btn-contingencia" aria-label="Registrar contingência">
+                            <i class="fas fa-person-walking-luggage" aria-hidden="true"></i>
+                            Sem Armários
+                        </button>
                     </div>
                 </div>
                 <!-- Tabela de Armários -->
@@ -3893,6 +3956,7 @@
             visitaEstendidaInput: document.getElementById('visita-estendida'),
             filterBtns: document.querySelectorAll('.filter-btn'),
             dashboardSearch: document.getElementById('dashboard-search'),
+            contingenciaButton: document.getElementById('btn-contingencia'),
             cardsCount: {
                 livres: document.getElementById('livres-count'),
                 emUso: document.getElementById('em-uso-count'),
@@ -4335,6 +4399,10 @@
         function perfilAtualEhAdmin() {
             const usuario = obterUsuarioAutenticado();
             return usuario ? normalizarTexto(usuario.perfil) === 'admin' : false;
+        }
+        function perfilAtualEhAcompanhante() {
+            const perfil = normalizarTexto(estado.perfilAtual);
+            return perfil === 'acompanhante';
         }
         function normalizarListaDeUnidades(unidades) {
             if (!unidades) return [];
@@ -4974,7 +5042,8 @@
                     numero: normalizarIdentificador(armario.numero),
                     unidade: armario.unidade ? armario.unidade.trim() : '',
                     prontuario: armario.prontuario ? armario.prontuario.toString().trim() : '',
-                    visitaEstendida: Boolean(armario.visitaEstendida)
+                    visitaEstendida: Boolean(armario.visitaEstendida),
+                    ehContingencia: Boolean(armario.ehContingencia) || normalizarTexto(armario.numero || '').startsWith('contingencia')
                 }));
                 estado.armarios = filtrarListaPorPermissao(armariosProcessados, item => item.unidade);
                 estado.armariosCarregados = true;
@@ -5406,6 +5475,9 @@
                     renderizarArmarios();
                 });
             }
+            if (elementos.contingenciaButton) {
+                elementos.contingenciaButton.addEventListener('click', abrirCadastroContingencia);
+            }
             atualizarBotoesFiltroDashboard();
             const padraoLocalLiberacao = obterDataHoraLocalPadrao();
             if (elementos.liberacaoDataInicio) {
@@ -5738,10 +5810,16 @@
         }
         // Atualizar interface baseada no perfil
         function atualizarInterface() {
+            atualizarVisibilidadeContingencia();
             // Renderizar armários
             if (estado.paginaAtual === 'dashboard') {
                 renderizarArmarios();
             }
+        }
+        function atualizarVisibilidadeContingencia() {
+            if (!elementos.contingenciaButton) return;
+            const visivel = perfilAtualEhAcompanhante();
+            elementos.contingenciaButton.style.display = visivel ? 'inline-flex' : 'none';
         }
         function obterFiltrosAtivosDashboard() {
             if (!Array.isArray(estado.filtrosSelecionados) || estado.filtrosSelecionados.length === 0) {
@@ -5792,6 +5870,13 @@
             ];
             return campos.some(campo => normalizarTextoBusca(campo).includes(filtroNormalizado));
         }
+        function armarioEhContingencia(armario) {
+            if (!armario) return false;
+            if (armario.ehContingencia) return true;
+            const numeroNormalizado = normalizarTexto(armario.numero);
+            const statusNormalizado = normalizarTexto(armario.status);
+            return numeroNormalizado.startsWith('contingencia') || statusNormalizado === 'contingencia';
+        }
         // Renderizar lista de armários no dashboard
         function renderizarArmarios() {
             elementos.armariosContainer.innerHTML = '';
@@ -5808,7 +5893,7 @@
                 const correspondeUnidade = unidadeFiltroNormalizado === 'todas' ||
                     normalizarTexto(a.unidade) === unidadeFiltroNormalizado;
                 return correspondePerfil && correspondeUnidade;
-            });
+            }).filter(a => !(armarioEhContingencia(a) && normalizarTexto(a.status) === 'livre'));
             // Aplicar filtro
             const filtrosAtivos = obterFiltrosAtivosDashboard();
             if (!filtrosAtivos.includes('todos')) {
@@ -5821,7 +5906,8 @@
             }
             armariosParaExibir.forEach(armario => {
                 const card = document.createElement('div');
-                card.className = `armario-card ${armario.status}`;
+                const classeStatus = armarioEhContingencia(armario) ? 'contingencia' : armario.status;
+                card.className = `armario-card ${classeStatus}`;
                 card.dataset.id = armario.id;
                 if (armario.visitaEstendida) {
                     card.classList.add('visita-estendida');
@@ -5851,11 +5937,18 @@
                         ${dataRegistroHtml}
                     `;
                 }
+                const statusTexto = armarioEhContingencia(armario)
+                    ? 'Contingência'
+                    : armario.status === 'livre'
+                        ? 'Livre'
+                        : armario.status === 'em-uso'
+                            ? 'Em uso'
+                            : armario.status === 'proximo'
+                                ? 'Próximo'
+                                : 'Vencido';
                 const statusHtml = `
-                    <div class="armario-status status-${armario.status}">
-                        ${armario.status === 'livre' ? 'Livre' :
-                          armario.status === 'em-uso' ? 'Em uso' :
-                          armario.status === 'proximo' ? 'Próximo' : 'Vencido'}
+                    <div class="armario-status status-${classeStatus}">
+                        ${statusTexto}
                     </div>
                 `;
                 const destaqueVisita = armario.visitaEstendida
@@ -6414,6 +6507,7 @@
             return estado.armarios
                 .filter(armario => normalizarTexto(armario.tipo) === 'acompanhante')
                 .filter(armario => normalizarTexto(armario.status) === 'livre')
+                .filter(armario => !armarioEhContingencia(armario))
                 .filter(armario => usuarioPodeVerUnidade(armario.unidade))
                 .filter(armario => {
                     if (!filtroNormalizado) return true;
@@ -7212,6 +7306,92 @@
             }
         }
         // Abrir modal para cadastro/edição de armário
+        async function abrirCadastroContingencia() {
+            if (!perfilAtualEhAcompanhante()) {
+                mostrarErro('Ação disponível apenas no perfil de acompanhantes.');
+                return;
+            }
+
+            const resultado = await Swal.fire({
+                title: 'Registrar contingência',
+                html: `
+                    <div class="swal-form-grid">
+                        <div class="swal-form-group">
+                            <label for="contingencia-acompanhante">Acompanhante</label>
+                            <input id="contingencia-acompanhante" class="swal2-input" placeholder="Nome do acompanhante" required>
+                        </div>
+                        <div class="swal-form-group">
+                            <label for="contingencia-paciente">Paciente</label>
+                            <input id="contingencia-paciente" class="swal2-input" placeholder="Nome do paciente" required>
+                        </div>
+                        <div class="swal-form-group">
+                            <label for="contingencia-prontuario">Prontuário</label>
+                            <input id="contingencia-prontuario" class="swal2-input" placeholder="Prontuário" aria-required="true">
+                        </div>
+                    </div>
+                `,
+                focusConfirm: false,
+                showCancelButton: true,
+                confirmButtonText: 'Registrar',
+                cancelButtonText: 'Cancelar',
+                preConfirm: () => {
+                    const popup = Swal.getPopup();
+                    const acompanhante = popup.querySelector('#contingencia-acompanhante').value.trim();
+                    const paciente = popup.querySelector('#contingencia-paciente').value.trim();
+                    const prontuario = popup.querySelector('#contingencia-prontuario').value.trim();
+                    if (!acompanhante || !paciente) {
+                        Swal.showValidationMessage('Informe acompanhante e paciente.');
+                        return false;
+                    }
+                    return { acompanhante, paciente, prontuario };
+                }
+            });
+
+            if (!resultado.isConfirmed || !resultado.value) {
+                return;
+            }
+
+            const payload = {
+                nomeAcompanhante: resultado.value.acompanhante,
+                nomePaciente: resultado.value.paciente,
+                prontuario: resultado.value.prontuario,
+                unidade: estado.unidadeAtual === 'todas' ? '' : estado.unidadeAtual,
+                usuarioResponsavel: obterDescricaoResponsavelAtual()
+            };
+
+            const finalizar = mostrarOverlayCarregamento('Registrando contingência...');
+            try {
+                const resposta = await callGoogleScript('registrarContingencia', payload);
+                if (!resposta.success) {
+                    notificarErroPadrao(resposta, 'Não foi possível registrar contingência.');
+                    return;
+                }
+
+                const novoArmario = resposta.data || {};
+                const armarioNormalizado = {
+                    ...novoArmario,
+                    id: normalizarIdentificador(novoArmario.id),
+                    idPlanilha: novoArmario.idPlanilha !== undefined && novoArmario.idPlanilha !== null
+                        ? novoArmario.idPlanilha.toString().trim()
+                        : '',
+                    numero: normalizarIdentificador(novoArmario.numero),
+                    unidade: novoArmario.unidade ? novoArmario.unidade.toString().trim() : '',
+                    prontuario: novoArmario.prontuario ? novoArmario.prontuario.toString().trim() : '',
+                    visitaEstendida: Boolean(novoArmario.visitaEstendida),
+                    ehContingencia: true,
+                    status: 'contingencia'
+                };
+                estado.armarios.push(armarioNormalizado);
+                estado.armariosCarregados = true;
+                atualizarResumoDashboardLocal();
+                atualizarInterface();
+                carregarDadosTabelas({ recarregarArmarios: false }).catch(console.error);
+                sincronizarDadosArmariosEmSegundoPlano({ recarregarArmarios: true });
+                mostrarSucesso('Contingência registrada com sucesso.');
+            } finally {
+                finalizar();
+            }
+        }
         function abrirModalArmario(armario) {
             if (armario.status === 'livre') {
                 elementos.modalTitle.textContent = `Cadastrar Armário ${armario.numero}`;
@@ -7269,6 +7449,7 @@
                 restaurarRascunhoArmario();
                 elementos.armarioModal.style.display = 'flex';
             } else {
+                const ehContingencia = armarioEhContingencia(armario);
                 const termoStatusNormalizado = normalizarTexto(armario.termoStatus);
                 const termoStatusTexto = formatarStatusTermo(armario.termoStatus);
                 const termoPendente = termoStatusNormalizado === 'pendente';
@@ -7287,6 +7468,9 @@
                 const dataRegistroHtml = `<p><strong>Data:</strong> ${dataRegistroFormatada}</p>`;
                 const botoesEdicao = armario.tipo === 'visitante'
                     ? `<div class="swal-extra-actions"><button id="btn-editar-horario" class="swal2-confirm swal2-styled swal2-secondary-action" type="button" style="background-color:#2c6e8f;">Editar horário/visita</button></div>`
+                    : '';
+                const moverContingenciaHtml = ehContingencia
+                    ? `<div class="swal-extra-actions" style="margin-top:8px;"><button id="btn-mover-contingencia" class="swal2-confirm swal2-styled swal2-secondary-action" type="button" style="background-color:#0f766e;">Mover para armário livre</button></div>`
                     : '';
                 Swal.fire({
                     title: `Armário ${armario.numero}`,
@@ -7308,6 +7492,7 @@
                         ${dataRegistroHtml}
                         ${termoHtml}
                         ${botoesEdicao}
+                        ${moverContingenciaHtml}
                         ${armario.tipo === 'acompanhante' && termoPendente ? `<div style="margin-top:16px;"><button id="btn-aplicar-termo" class="swal2-confirm swal2-styled" style="background-color:#2c6e8f;">Aplicar termo agora</button></div>` : ''}
                     `,
                     icon: 'info',
@@ -7329,6 +7514,15 @@
                                 `;
                             };
                             confirmButton.addEventListener('click', aplicarLoadingConfirmacao, { once: true });
+                        }
+                        if (ehContingencia) {
+                            const moverContingenciaButton = Swal.getHtmlContainer().querySelector('#btn-mover-contingencia');
+                            if (moverContingenciaButton) {
+                                moverContingenciaButton.addEventListener('click', event => {
+                                    event.preventDefault();
+                                    moverContingenciaParaArmarioLivre(armario);
+                                });
+                            }
                         }
                         if (armario.tipo === 'visitante') {
                             const botaoEditar = Swal.getHtmlContainer().querySelector('#btn-editar-horario');
@@ -7371,6 +7565,95 @@
                         abrirMovimentacoes(armario.id);
                     }
                 });
+            }
+        }
+        async function moverContingenciaParaArmarioLivre(armarioContingencia) {
+            if (!armarioContingencia || !armarioEhContingencia(armarioContingencia)) {
+                return;
+            }
+            const livres = obterArmariosAcompanhantesLivres();
+            if (!livres.length) {
+                await Swal.fire({
+                    title: 'Nenhum armário livre',
+                    text: 'Cadastre ou libere um armário para transferir esta contingência.',
+                    icon: 'warning'
+                });
+                return;
+            }
+
+            const optionsHtml = livres.map(item => {
+                const unidadeTexto = item.unidade ? ` - ${item.unidade}` : '';
+                return `<option value="${item.id}">${item.numero}${unidadeTexto}</option>`;
+            }).join('');
+
+            const resultado = await Swal.fire({
+                title: 'Mover para armário livre',
+                html: `
+                    <div class="swal-form-group">
+                        <label for="destino-contingencia">Selecione o armário livre</label>
+                        <select id="destino-contingencia" class="swal2-select" style="width:100%;">
+                            ${optionsHtml}
+                        </select>
+                    </div>
+                `,
+                focusConfirm: false,
+                showCancelButton: true,
+                confirmButtonText: 'Mover',
+                cancelButtonText: 'Cancelar',
+                preConfirm: () => {
+                    const select = Swal.getPopup().querySelector('#destino-contingencia');
+                    const valor = select ? select.value : '';
+                    if (!valor) {
+                        Swal.showValidationMessage('Selecione um armário de destino.');
+                        return false;
+                    }
+                    return valor;
+                }
+            });
+
+            if (!resultado.isConfirmed || !resultado.value) {
+                return;
+            }
+
+            const destinoId = resultado.value;
+            const dadosCadastro = {
+                paciente: armarioContingencia.nomePaciente || '',
+                prontuario: armarioContingencia.prontuario || '',
+                acompanhante: armarioContingencia.nomeVisitante || ''
+            };
+
+            const finalizar = mostrarOverlayCarregamento('Movendo contingência...');
+            try {
+                const ocupacao = await registrarOcupacaoArmario({
+                    armarioId: destinoId,
+                    dadosCadastro,
+                    silencioso: true,
+                    recarregarApos: false
+                });
+
+                if (!ocupacao) {
+                    return;
+                }
+
+                const liberacao = await callGoogleScript('liberarArmario', {
+                    id: armarioContingencia.idPlanilha || armarioContingencia.id,
+                    tipo: 'acompanhante',
+                    numero: armarioContingencia.numero,
+                    usuarioResponsavel: obterDescricaoResponsavelAtual()
+                });
+
+                if (!liberacao.success) {
+                    notificarErroPadrao(liberacao, 'Não foi possível atualizar o status da contingência.');
+                }
+
+                await carregarArmarios({ forcarAtualizacao: true });
+                atualizarResumoDashboardLocal();
+                atualizarInterface();
+                carregarDadosTabelas({ recarregarArmarios: false }).catch(console.error);
+                sincronizarDadosArmariosEmSegundoPlano({ recarregarArmarios: true });
+                mostrarSucesso('Contingência movida para armário livre.');
+            } finally {
+                finalizar();
             }
         }
         // Abrir edição de horário/visita para armário em uso
@@ -7859,6 +8142,8 @@
                     return 'Próximo do horário';
                 case 'vencido':
                     return 'Vencido';
+                case 'contingencia':
+                    return 'Contingência';
                 default:
                     return 'Livre';
             }

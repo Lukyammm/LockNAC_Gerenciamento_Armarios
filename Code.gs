@@ -176,6 +176,21 @@ function converterParaBoolean(valor) {
   return false;
 }
 
+function ehNumeroContingencia(numero) {
+  var texto = (numero || '').toString().trim().toLowerCase();
+  return texto.indexOf('conting') === 0;
+}
+
+function extrairSequenciaContingencia(numero) {
+  var texto = (numero || '').toString();
+  var match = texto.match(/conting[êe]ncia[-\s]*(\d+)/i);
+  if (match && match[1]) {
+    var valor = parseInt(match[1], 10);
+    return isNaN(valor) ? 0 : valor;
+  }
+  return 0;
+}
+
 function normalizarListaUnidadesParametro(valor) {
   try {
     if (valor === null || valor === undefined) {
@@ -1181,7 +1196,11 @@ function handlePost(e) {
       case 'autenticarUsuario':
         return ContentService.createTextOutput(JSON.stringify(autenticarUsuario(e.parameter)))
           .setMimeType(ContentService.MimeType.JSON);
-      
+
+      case 'registrarContingencia':
+        return ContentService.createTextOutput(JSON.stringify(registrarContingencia(e.parameter)))
+          .setMimeType(ContentService.MimeType.JSON);
+
       case 'getLogs':
         return ContentService.createTextOutput(JSON.stringify(getLogs()))
           .setMimeType(ContentService.MimeType.JSON);
@@ -1447,6 +1466,7 @@ function getArmariosFromSheet(sheetName, tipo, termosMap) {
     var numeroBruto = row[numeroIndex] || '';
     var numeroNormalizado = normalizarNumeroArmario(numeroBruto);
     var idInterface = montarChaveArmarioInterface(tipo, numeroNormalizado, idPlanilha);
+    var ehContingencia = ehNumeroContingencia(numeroNormalizado) || status === 'contingencia';
 
     var armario = {
       id: idInterface,
@@ -1462,7 +1482,8 @@ function getArmariosFromSheet(sheetName, tipo, termosMap) {
       tipo: tipo,
       unidade: unidadeIndex !== null && unidadeIndex !== undefined ? (row[unidadeIndex] || '') : '',
       termoAplicado: termoIndex !== null && termoIndex !== undefined ? converterParaBoolean(row[termoIndex]) : false,
-      whatsapp: whatsappIndex !== null && whatsappIndex !== undefined ? (row[whatsappIndex] || '') : ''
+      whatsapp: whatsappIndex !== null && whatsappIndex !== undefined ? (row[whatsappIndex] || '') : '',
+      ehContingencia: ehContingencia
     };
 
     if (isVisitante) {
@@ -1715,6 +1736,159 @@ function cadastrarArmario(armarioData) {
 
   } catch (error) {
     registrarLog('ERRO', `Erro ao cadastrar armário: ${error.toString()}`);
+    return { success: false, error: error.toString() };
+  }
+}
+
+function gerarProximoNumeroContingencia(sheet, estrutura, numeroIndex, statusIndex) {
+  var totalLinhas = sheet.getLastRow();
+  if (totalLinhas <= 1) {
+    return 'Contingência-01';
+  }
+
+  var totalColunas = estrutura.ultimaColuna || sheet.getLastColumn();
+  var dados = sheet.getRange(2, 1, totalLinhas - 1, totalColunas).getValues();
+  var maiorSequencia = 0;
+
+  dados.forEach(function(linha) {
+    var numeroAtual = obterValorLinha(linha, estrutura, 'numero', linha[numeroIndex] || '');
+    if (ehNumeroContingencia(numeroAtual)) {
+      maiorSequencia = Math.max(maiorSequencia, extrairSequenciaContingencia(numeroAtual));
+    }
+  });
+
+  var proximaSequencia = maiorSequencia + 1;
+  return 'Contingência-' + String(proximaSequencia).padStart(2, '0');
+}
+
+function registrarContingencia(dados) {
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName('Acompanhantes');
+    var historicoSheet = ss.getSheetByName('Histórico Acompanhantes');
+
+    if (!sheet || !historicoSheet) {
+      return { success: false, error: 'Abas não encontradas' };
+    }
+
+    garantirEstruturaHistorico(historicoSheet);
+
+    var estrutura = garantirColunaProntuario(sheet, obterEstruturaPlanilha(sheet));
+    var totalColunas = estrutura.ultimaColuna || 12;
+    var totalLinhas = sheet.getLastRow();
+    var numeroIndex = obterIndiceColuna(estrutura, 'numero', 1);
+    var statusIndex = obterIndiceColuna(estrutura, 'status', 2);
+    var idIndex = obterIndiceColuna(estrutura, 'id', 0);
+
+    var linhasPlanilha = totalLinhas > 1
+      ? sheet.getRange(2, 1, totalLinhas - 1, totalColunas).getValues()
+      : [];
+
+    var linhaDisponivel = -1;
+    var numeroDisponivel = '';
+    var maiorId = 0;
+
+    linhasPlanilha.forEach(function(linha, indice) {
+      var idLinha = Number(linha[idIndex]) || 0;
+      if (idLinha > maiorId) {
+        maiorId = idLinha;
+      }
+
+      var numeroAtual = obterValorLinha(linha, estrutura, 'numero', linha[numeroIndex] || '');
+      var statusAtual = normalizarTextoBasico(obterValorLinha(linha, estrutura, 'status', linha[statusIndex] || ''));
+
+      if (linhaDisponivel === -1 && ehNumeroContingencia(numeroAtual) && statusAtual === 'livre') {
+        linhaDisponivel = indice;
+        numeroDisponivel = numeroAtual;
+      }
+    });
+
+    var numeroContingencia = numeroDisponivel || gerarProximoNumeroContingencia(sheet, estrutura, numeroIndex, statusIndex);
+    var linhaPlanilha = linhaDisponivel > -1 ? linhaDisponivel + 2 : totalLinhas + 1;
+    var idGerado = linhaDisponivel > -1 ? linhasPlanilha[linhaDisponivel][idIndex] : maiorId + 1;
+    var dataHoraAtual = obterDataHoraAtualFormatada();
+    var responsavel = determinarResponsavelRegistro(dados.usuarioResponsavel);
+    var nomeChavesCadastro = CABECALHOS_NOME_ACOMPANHANTE;
+    var volumes = parseInt(dados.volumes, 10);
+    volumes = isNaN(volumes) || volumes < 0 ? 0 : volumes;
+
+    var linhaBase = linhaDisponivel > -1
+      ? sheet.getRange(linhaPlanilha, 1, 1, totalColunas).getValues()[0]
+      : new Array(totalColunas).fill('');
+
+    definirValorLinha(linhaBase, estrutura, 'id', idGerado);
+    definirValorLinha(linhaBase, estrutura, 'numero', numeroContingencia);
+    definirValorLinha(linhaBase, estrutura, 'status', 'contingencia');
+    definirValorLinha(linhaBase, estrutura, nomeChavesCadastro, dados.nomeAcompanhante || dados.nomeVisitante || '');
+    definirValorLinha(linhaBase, estrutura, 'nome paciente', dados.nomePaciente || '');
+    definirValorLinha(linhaBase, estrutura, 'prontuario', dados.prontuario || '');
+    definirValorLinha(linhaBase, estrutura, 'leito', dados.leito || '');
+    definirValorLinha(linhaBase, estrutura, 'volumes', volumes);
+    definirValorLinha(linhaBase, estrutura, 'hora inicio', dataHoraAtual.horaCurta);
+    definirValorLinha(linhaBase, estrutura, 'hora prevista', '');
+    definirValorLinha(linhaBase, estrutura, 'data registro', dataHoraAtual.dataHoraIso);
+    definirValorLinha(linhaBase, estrutura, 'unidade', dados.unidade || '');
+    definirValorLinha(linhaBase, estrutura, CABECALHOS_WHATSAPP, dados.whatsapp || '');
+    definirValorLinha(linhaBase, estrutura, 'termo aplicado', false);
+
+    sheet.getRange(linhaPlanilha, 1, 1, totalColunas).setValues([linhaBase]);
+
+    var historicoLastRow = historicoSheet.getLastRow();
+    var ultimoHistoricoId = historicoLastRow > 1
+      ? Number(historicoSheet.getRange(historicoLastRow, 1).getValue()) || 0
+      : 0;
+    var historicoId = ultimoHistoricoId + 1;
+    var proximaLinhaHistorico = historicoLastRow + 1;
+
+    var historicoLinha = [
+      historicoId,
+      dataHoraAtual.data,
+      numeroContingencia,
+      dados.nomeAcompanhante || dados.nomeVisitante || '',
+      dados.nomePaciente || '',
+      dados.leito || '',
+      volumes,
+      dataHoraAtual.horaCurta,
+      '',
+      'CONTINGENCIA',
+      'acompanhante',
+      dados.unidade || '',
+      dados.whatsapp || '',
+      responsavel
+    ];
+
+    historicoSheet.getRange(proximaLinhaHistorico, 1, 1, historicoLinha.length).setValues([historicoLinha]);
+
+    limparCacheArmarios();
+    limparCacheHistorico();
+
+    return {
+      success: true,
+      data: {
+        id: idGerado,
+        numero: numeroContingencia,
+        status: 'contingencia',
+        tipo: 'acompanhante',
+        nomeVisitante: dados.nomeAcompanhante || dados.nomeVisitante || '',
+        nomePaciente: dados.nomePaciente || '',
+        prontuario: dados.prontuario || '',
+        leito: dados.leito || '',
+        volumes: volumes,
+        horaInicio: dataHoraAtual.horaCurta,
+        horaPrevista: '',
+        dataRegistro: dataHoraAtual.dataHoraIso,
+        unidade: dados.unidade || '',
+        whatsapp: dados.whatsapp || '',
+        visitaEstendida: false,
+        termoAplicado: false,
+        termoFinalizado: false,
+        termoStatus: 'pendente',
+        ehContingencia: true
+      }
+    };
+
+  } catch (error) {
+    registrarLog('ERRO', `Erro ao registrar contingência: ${error.toString()}`);
     return { success: false, error: error.toString() };
   }
 }
@@ -4515,32 +4689,29 @@ function getNotificacoes() {
   try {
     var agora = new Date();
     var notificacoes = [];
-    
-    // Verificar armários vencidos e próximos do vencimento
-    var tipos = ['visitante', 'acompanhante'];
-    
-    tipos.forEach(function(tipo) {
-      var armarios = getArmarios(tipo);
-      if (armarios.success) {
-        armarios.data.forEach(function(armario) {
+
+    var armariosVisitantes = getArmarios('visitante');
+    var armariosAcompanhantes = getArmarios('acompanhante');
+
+    // Verificar armários vencidos e próximos do vencimento (visitantes e acompanhantes)
+    [armariosVisitantes, armariosAcompanhantes].forEach(function(resultado) {
+      if (resultado && resultado.success) {
+        resultado.data.forEach(function(armario) {
           if (armario.status === 'em-uso' && armario.horaPrevista) {
             try {
-              // Converter hora prevista para objeto Date
               var hoje = new Date().toISOString().split('T')[0];
               var horaPrevista = new Date(hoje + 'T' + armario.horaPrevista + ':00');
               var diferencaMinutos = (horaPrevista - agora) / (1000 * 60);
-              
+
               if (diferencaMinutos < 0) {
-                // Vencido
                 notificacoes.push({
                   tipo: 'danger',
                   titulo: `Armário ${armario.numero} vencido`,
                   tempo: `Há ${Math.abs(Math.round(diferencaMinutos))} minutos`
                 });
               } else if (diferencaMinutos <= 10) {
-                // Próximo do vencimento (10 minutos ou menos)
                 notificacoes.push({
-                  tipo: 'warning', 
+                  tipo: 'warning',
                   titulo: `Armário ${armario.numero} próximo do horário`,
                   tempo: `Há ${Math.round(diferencaMinutos)} minutos`
                 });
@@ -4552,9 +4723,27 @@ function getNotificacoes() {
         });
       }
     });
-    
+
+    // Aviso para movimentação de contingência quando houver armários livres
+    if (armariosAcompanhantes && armariosAcompanhantes.success) {
+      var contigencias = armariosAcompanhantes.data.filter(function(item) {
+        return normalizarTextoBasico(item.status) === 'contingencia';
+      });
+      var livres = armariosAcompanhantes.data.filter(function(item) {
+        return normalizarTextoBasico(item.status) === 'livre';
+      });
+
+      if (contigencias.length && livres.length) {
+        notificacoes.unshift({
+          tipo: 'warning',
+          titulo: 'Há armários livres para mover contingências',
+          tempo: `${livres.length} livre(s) para ${contigencias.length} contingência(s)`
+        });
+      }
+    }
+
     return { success: true, data: notificacoes };
-    
+
   } catch (error) {
     return { success: false, error: error.toString() };
   }
