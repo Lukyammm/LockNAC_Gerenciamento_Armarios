@@ -3,7 +3,7 @@ function doGet() {
   return HtmlService.createHtmlOutputFromFile('index')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
-    .setTitle('Consigne - Gerenciamento de Armários');
+    .setTitle('Cosign - Gerenciamento de Armários');
 }
 
 function doPost(e) {
