@@ -2976,12 +2976,12 @@
             <div class="modal-body">
                 <form id="armario-form">
                     <div class="form-group">
-                        <label for="nome-visitante">Nome do Visitante</label>
-                        <input type="text" id="nome-visitante" class="form-control" required>
-                    </div>
-                    <div class="form-group">
                         <label for="nome-paciente">Nome do Paciente</label>
                         <input type="text" id="nome-paciente" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="nome-visitante">Nome do Visitante</label>
+                        <input type="text" id="nome-visitante" class="form-control" required>
                     </div>
                     <div class="form-group">
                         <label for="leito">Leito</label>
@@ -3618,7 +3618,7 @@
                 const valores = dados?.valores || {};
                 if (document.getElementById('nome-visitante')) document.getElementById('nome-visitante').value = valores.nomeVisitante || '';
                 if (document.getElementById('nome-paciente')) document.getElementById('nome-paciente').value = valores.nomePaciente || '';
-                if (document.getElementById('leito')) document.getElementById('leito').value = valores.leito || '';
+                if (document.getElementById('leito')) document.getElementById('leito').value = aplicarMascaraLeito(valores.leito || '');
                 if (document.getElementById('whatsapp-contato')) document.getElementById('whatsapp-contato').value = valores.whatsapp || '';
                 if (document.getElementById('volumes')) document.getElementById('volumes').value = valores.volumes || '';
                 if (elementos.horaPrevistaInput) elementos.horaPrevistaInput.value = valores.horaPrevista || '';
@@ -3706,7 +3706,7 @@
                     }
                 }
                 if (elementos.termoSetor) elementos.termoSetor.value = valores.setor || '';
-                if (document.getElementById('termo-leito')) document.getElementById('termo-leito').value = valores.leito || '';
+                if (document.getElementById('termo-leito')) document.getElementById('termo-leito').value = aplicarMascaraLeito(valores.leito || '');
                 if (document.getElementById('termo-resp-nome')) document.getElementById('termo-resp-nome').value = valores.acompanhante || '';
                 if (document.getElementById('termo-resp-telefone')) document.getElementById('termo-resp-telefone').value = valores.telefone || '';
                 if (document.getElementById('termo-resp-doc')) document.getElementById('termo-resp-doc').value = valores.documento || '';
@@ -5528,6 +5528,7 @@
                 campo.addEventListener('input', salvarRascunhoArmario);
                 campo.addEventListener('change', salvarRascunhoArmario);
             });
+            [document.getElementById('leito'), elementos.termoLeito].forEach(campo => aplicarMascaraLeitoCampo(campo));
             elementos.usuarioForm.addEventListener('submit', function(e) {
                 e.preventDefault();
                 salvarUsuario();
@@ -5818,7 +5819,11 @@
         }
         function atualizarVisibilidadeContingencia() {
             if (!elementos.contingenciaButton) return;
-            const visivel = perfilAtualEhAcompanhante();
+            const perfilNormalizado = normalizarTexto(estado.perfilAtual);
+            const visivel = perfilAtualEhAcompanhante()
+                || perfilNormalizado === 'geral'
+                || perfilNormalizado === 'todos'
+                || perfilAtualEhAdmin();
             elementos.contingenciaButton.style.display = visivel ? 'inline-flex' : 'none';
         }
         function obterFiltrosAtivosDashboard() {
@@ -8438,7 +8443,7 @@
                 }
             }
             definirSetorTermo(termoDados?.setor || preCadastro?.setor || '');
-            document.getElementById('termo-leito').value = termoDados?.leito || preCadastro?.leito || armario.leito || '';
+            document.getElementById('termo-leito').value = aplicarMascaraLeito(termoDados?.leito || preCadastro?.leito || armario.leito || '');
             document.getElementById('termo-resp-nome').value = termoDados?.acompanhante || preCadastro?.nomeVisitante || armario.nomeVisitante || '';
             document.getElementById('termo-resp-telefone').value = termoDados?.telefone || '';
             document.getElementById('termo-resp-doc').value = termoDados?.documento || '';
@@ -9007,6 +9012,36 @@
                 conferencia: 'Conferência'
             };
             return mapa[tipo] || tipo;
+        }
+        function aplicarMascaraLeito(valor) {
+            const digitos = (valor || '').replace(/\D/g, '').slice(0, 5);
+            const primeiraParte = digitos.slice(0, 3);
+            const segundaParte = digitos.slice(3, 5);
+            let formatado = primeiraParte;
+            if (digitos.length >= 3) {
+                formatado = `${primeiraParte}/`;
+            }
+            if (segundaParte) {
+                formatado += segundaParte;
+            }
+            return formatado;
+        }
+        function aplicarMascaraLeitoCampo(campo) {
+            if (!campo) return;
+            const aplicarMascara = () => {
+                const formatado = aplicarMascaraLeito(campo.value);
+                if (campo.value !== formatado) {
+                    campo.value = formatado;
+                    try {
+                        const pos = formatado.length;
+                        campo.setSelectionRange(pos, pos);
+                    } catch (erro) {
+                        console.warn('Não foi possível ajustar o cursor do campo de leito.', erro);
+                    }
+                }
+            };
+            campo.addEventListener('input', aplicarMascara);
+            aplicarMascara();
         }
         async function renderizarMovimentacoes(id) {
             if (!elementos.movimentacoesList) return;
