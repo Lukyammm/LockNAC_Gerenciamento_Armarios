@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Consigne - Gerenciamento de Armários</title>
+    <title>Cosign - Gerenciamento de Armários</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,100;0,400;0,700;1,100;1,400;1,700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         :root {
@@ -28,7 +29,7 @@
             --shadow-color: rgba(15, 23, 42, 0.08);
 
             /* Typography */
-            --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            --font-family: 'Lato', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 
             /* Misc */
             --focus-ring: rgba(59, 130, 246, 0.25);
@@ -114,6 +115,20 @@
             align-items: center;
             gap: 6px;
         }
+        .brand-name {
+            display: inline-flex;
+            gap: 2px;
+            align-items: baseline;
+            letter-spacing: 0.02em;
+        }
+        .brand-co {
+            font-weight: 700;
+            font-style: italic;
+        }
+        .brand-sign {
+            font-weight: 100;
+            font-style: italic;
+        }
         .sidebar-logo-icon {
             width: 54px;
             height: 54px;
@@ -130,7 +145,7 @@
             font-size: 1.1rem;
             font-weight: 600;
             letter-spacing: 0.06em;
-            text-transform: uppercase;
+            text-transform: none;
         }
         .sidebar-header p {
             font-size: 0.75rem;
@@ -2539,7 +2554,10 @@
         <div class="login-card">
             <h2>ACESSO RESTRITO</h2>
             <img src="https://i.ibb.co/hxbRMNvV/logo-HUC.jpg" alt="Logo Hospital Universitário do Ceará" loading="lazy">
-            <h3>Consigne - Gerenciamento de Armários</h3>
+            <h3 class="brand-name" aria-label="Cosign - Gerenciamento de Armários">
+                <span class="brand-co">Co</span><span class="brand-sign">sign</span>
+                <span style="font-weight:400;font-style:normal;">- Gerenciamento de Armários</span>
+            </h3>
             <form id="login-form" class="login-form" novalidate>
                 <div>
                     <label for="login-usuario">Usuário</label>
@@ -2563,7 +2581,9 @@
                     <div class="sidebar-logo-icon" aria-hidden="true">
                         <i class="fas fa-lock"></i>
                     </div>
-                    <div class="sidebar-title">Consigne</div>
+                    <div class="sidebar-title brand-name" aria-label="Cosign">
+                        <span class="brand-co">Co</span><span class="brand-sign">sign</span>
+                    </div>
                 </div>
                 <p>Hospital Universitário do Ceará</p>
             </div>
