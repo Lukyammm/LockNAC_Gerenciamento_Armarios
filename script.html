@@ -644,6 +644,8 @@
             termoProgress: document.getElementById('termo-progress'),
             termoProgressLabel: document.getElementById('termo-progress-label'),
             termoArmario: document.getElementById('termo-armario'),
+            termoLoading: document.getElementById('termo-loading'),
+            termoLoadingText: document.getElementById('termo-loading-text'),
             termoVolumesList: document.getElementById('termo-volumes-list'),
             termoAddVolume: document.getElementById('termo-add-volume'),
             termoVolumesField: document.getElementById('termo-volumes-field'),
@@ -5067,39 +5069,20 @@
         function abrirTermoDireto(id) {
             abrirTermoWizard(id);
         }
-        async function abrirTermoWizard(id) {
-            let armario = obterArmarioPorId(id);
-            if (!armario) {
-                armario = estado.armarios.find(item => normalizarIdentificador(item.idPlanilha) === normalizarIdentificador(id));
+        function setEstadoCarregamentoTermo(ativo, mensagem = 'Carregando dados do termo...') {
+            if (elementos.termoLoading) {
+                elementos.termoLoading.classList.toggle('active', Boolean(ativo));
             }
+            if (elementos.termoLoadingText && mensagem) {
+                elementos.termoLoadingText.textContent = mensagem;
+            }
+            if (elementos.termoModal) {
+                elementos.termoModal.setAttribute('aria-busy', ativo ? 'true' : 'false');
+            }
+        }
+        function preencherCamposTermo(armario, termoDados, preCadastro, opcoes = {}) {
             if (!armario) return;
-            const identificadores = montarIdentificadoresArmario(armario);
-            ajustarObrigatoriedadeCamposPaciente(identificadores?.tipo || armario.tipo || '');
-            termoArmarioAtual = id;
-            termoPassoAtual = 0;
-            elementos.termoArmario.textContent = identificadores?.numeroArmario || armario.numero || '';
-            elementos.termoForm.reset();
-            elementos.termoForm.querySelectorAll('.wizard-field').forEach(field => field.classList.remove('invalid'));
-            limparAssinaturaTermo(true);
-            if (elementos.termoNascimento) {
-                delete elementos.termoNascimento.dataset.isoValue;
-            }
-
-            let termoDados = null;
-            const preCadastro = termoPreCadastro && identificadores && normalizarIdentificador(termoPreCadastro.id) === identificadores.idPlanilha
-                ? termoPreCadastro
-                : null;
-            try {
-                const resposta = await callGoogleScript('getTermo', montarPayloadTermo(armario, { incluirFinalizados: false }));
-                if (resposta.success) {
-                    termoDados = resposta.data;
-                } else if (resposta.error && resposta.error !== 'Termo não encontrado') {
-                    notificarErroPadrao(resposta);
-                }
-            } catch (erro) {
-                console.warn('Falha ao carregar termo existente:', erro);
-            }
-
+            const { restaurarAssinatura = true } = opcoes;
             document.getElementById('termo-paciente').value = termoDados?.paciente || preCadastro?.nomePaciente || armario.nomePaciente || '';
             document.getElementById('termo-prontuario').value = termoDados?.prontuario || '';
             if (elementos.termoNascimento) {
@@ -5123,34 +5106,70 @@
             document.getElementById('termo-resp-telefone').value = termoDados?.telefone || '';
             document.getElementById('termo-resp-doc').value = termoDados?.documento || '';
             document.getElementById('termo-resp-parentesco').value = termoDados?.parentesco || '';
-
             if (termoDados?.consciente) {
                 const radio = document.querySelector(`input[name="termo-consciente"][value="${termoDados.consciente}"]`);
                 if (radio) radio.checked = true;
             } else {
                 document.querySelectorAll('input[name="termo-consciente"]').forEach(r => (r.checked = false));
             }
-
             ['ori1', 'ori2', 'ori3'].forEach(chave => {
                 const checkbox = document.getElementById(`termo-${chave}`);
                 if (checkbox) {
                     checkbox.checked = termoDados?.orientacoes?.includes(chave) || false;
                 }
             });
-
             prepararVolumesTermo(Array.isArray(termoDados?.volumes) && termoDados.volumes.length ? termoDados.volumes : []);
             restaurarRascunhoTermo();
             mostrarPassoTermo(termoPassoAtual || 0);
+            const assinaturaInicial = termoDados?.assinaturas?.inicial || termoDados?.assinaturaBase64 || '';
+            if (restaurarAssinatura && assinaturaInicial && !termoAssinaturaDesenhada) {
+                restaurarAssinaturaTermo(assinaturaInicial);
+            }
+        }
+        async function abrirTermoWizard(id) {
+            let armario = obterArmarioPorId(id);
+            if (!armario) {
+                armario = estado.armarios.find(item => normalizarIdentificador(item.idPlanilha) === normalizarIdentificador(id));
+            }
+            if (!armario) return;
+            const identificadores = montarIdentificadoresArmario(armario);
+            ajustarObrigatoriedadeCamposPaciente(identificadores?.tipo || armario.tipo || '');
+            termoArmarioAtual = id;
+            termoPassoAtual = 0;
+            elementos.termoArmario.textContent = identificadores?.numeroArmario || armario.numero || '';
+            elementos.termoForm.reset();
+            elementos.termoForm.querySelectorAll('.wizard-field').forEach(field => field.classList.remove('invalid'));
+            limparAssinaturaTermo(true);
+            if (elementos.termoNascimento) {
+                delete elementos.termoNascimento.dataset.isoValue;
+            }
+            setEstadoCarregamentoTermo(true, 'Carregando dados do termo...');
+            const preCadastro = termoPreCadastro && identificadores && normalizarIdentificador(termoPreCadastro.id) === identificadores.idPlanilha
+                ? termoPreCadastro
+                : null;
             if (elementos.termoModal.style.display !== 'flex') {
                 travaRolagem.aplicar();
             }
             elementos.termoModal.style.display = 'flex';
             await aguardarProximoFrame();
             inicializarCanvasAssinatura();
-            const assinaturaInicial = termoDados?.assinaturas?.inicial || termoDados?.assinaturaBase64 || '';
-            if (assinaturaInicial && !termoAssinaturaDesenhada) {
-                restaurarAssinaturaTermo(assinaturaInicial);
-            }
+            preencherCamposTermo(armario, null, preCadastro, { restaurarAssinatura: false });
+            (async () => {
+                let termoDados = null;
+                try {
+                    const resposta = await callGoogleScript('getTermo', montarPayloadTermo(armario, { incluirFinalizados: false }));
+                    if (resposta.success) {
+                        termoDados = resposta.data;
+                    } else if (resposta.error && resposta.error !== 'Termo não encontrado') {
+                        notificarErroPadrao(resposta);
+                    }
+                } catch (erro) {
+                    console.warn('Falha ao carregar termo existente:', erro);
+                } finally {
+                    preencherCamposTermo(armario, termoDados, preCadastro);
+                    setEstadoCarregamentoTermo(false);
+                }
+            })();
         }
         function mostrarPassoTermo(indice) {
             termoSteps.forEach((step, idx) => step.classList.toggle('active', idx === indice));

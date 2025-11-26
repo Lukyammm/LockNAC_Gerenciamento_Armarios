@@ -686,25 +686,29 @@
         </div>
     </div>
     <!-- Modal Termo de Responsabilidade -->
-    <div class="modal modal-full" id="termo-modal">
-        <div class="modal-content modal-scrollable">
-            <div class="wizard-card" id="termo-card">
-                <div class="wizard-header">
-                    <div>
+            <div class="modal modal-full" id="termo-modal">
+                <div class="modal-content modal-scrollable">
+                    <div class="wizard-card" id="termo-card">
+                        <div class="wizard-header">
+                            <div>
                         <div class="wizard-title">Termo de responsabilidade do armário <span id="termo-armario"></span></div>
                         <div class="wizard-subtitle">Preencha os dados do acompanhante e do paciente antes de aplicar o termo.</div>
                     </div>
                     <div class="wizard-progress">
                         <div class="wizard-progress-bar"><span id="termo-progress"></span></div>
                         <div class="wizard-progress-label" id="termo-progress-label">Passo 1 de 3</div>
-                    </div>
-                    <button class="modal-close" id="termo-modal-close" type="button">&times;</button>
-                </div>
-                <div class="wizard-body">
-                    <form id="termo-form" autocomplete="off">
-                        <div class="wizard-step active" data-step="0">
-                            <div class="wizard-grid">
-                                <div class="wizard-col-12"><div class="wizard-badge">Dados do paciente</div></div>
+                            </div>
+                            <button class="modal-close" id="termo-modal-close" type="button">&times;</button>
+                        </div>
+                        <div class="wizard-loading" id="termo-loading" aria-live="polite" aria-atomic="true">
+                            <div class="wizard-loading-spinner" aria-hidden="true"></div>
+                            <div class="wizard-loading-text" id="termo-loading-text">Carregando dados do termo...</div>
+                        </div>
+                        <div class="wizard-body">
+                            <form id="termo-form" autocomplete="off">
+                                <div class="wizard-step active" data-step="0">
+                                    <div class="wizard-grid">
+                                        <div class="wizard-col-12"><div class="wizard-badge">Dados do paciente</div></div>
                                 <div class="wizard-col-8">
                                     <div class="wizard-field">
                                         <label for="termo-paciente" class="wizard-required">Nome do paciente</label>
