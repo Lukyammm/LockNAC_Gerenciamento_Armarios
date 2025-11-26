@@ -2584,6 +2584,7 @@
                     detailsHTML += `
                         <p><strong>${armario.tipo === 'acompanhante' ? 'Acompanhante' : 'Visitante'}:</strong> ${armario.nomeVisitante}</p>
                         <p><strong>Paciente:</strong> ${armario.nomePaciente}</p>
+                        <p><strong>Prontuário:</strong> ${armario.prontuario || '-'}</p>
                         <p><strong>Leito:</strong> ${armario.leito}</p>
                         <p><strong>Volumes:</strong> ${armario.volumes}</p>
                         ${armario.whatsapp ? `<p><strong>WhatsApp:</strong> ${armario.whatsapp}</p>` : ''}
@@ -4063,6 +4064,11 @@
         }
         function abrirModalArmario(armario) {
             if (armario.status === 'livre') {
+                if (normalizarTexto(armario.tipo) === 'acompanhante') {
+                    limparRascunhoArmario();
+                    abrirTermoWizard(armario.id);
+                    return;
+                }
                 elementos.modalTitle.textContent = `Cadastrar Armário ${armario.numero}`;
                 elementos.armarioForm.reset();
                 elementos.nomeVisitanteLabel.textContent =
@@ -4154,6 +4160,7 @@
                         </p>
                         <p><strong>${armario.tipo === 'acompanhante' ? 'Acompanhante' : 'Visitante'}:</strong> ${armario.nomeVisitante}</p>
                         <p><strong>Paciente:</strong> ${armario.nomePaciente}</p>
+                        <p><strong>Prontuário:</strong> ${armario.prontuario || '-'}</p>
                         <p><strong>Leito:</strong> ${armario.leito}</p>
                         <p><strong>Volumes:</strong> ${armario.volumes}</p>
                         ${armario.whatsapp ? `<p><strong>WhatsApp:</strong> ${armario.whatsapp}</p>` : ''}
