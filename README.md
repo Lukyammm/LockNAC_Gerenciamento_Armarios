@@ -55,7 +55,7 @@ Qualquer ação não reconhecida retorna `{ success: false, error: 'Ação não 
 - **Layout responsivo** com sidebar fixa, cards analíticos e tabelas com indicadores de status (cores e badges).
 - **Componentização**: blocos de UI reusáveis para dashboard, listagem de armários, histórico, gerenciamento de usuários e unidades.
 - **Feedback**: uso de SweetAlert 2 para diálogos de confirmação/erro e notificações sutis.
-- **Acessibilidade**: contraste alto, suporte a teclado (focus rings), tipografia padrão `Inter`.
+- **Acessibilidade**: contraste alto, suporte a teclado (focus rings), tipografia padrão `Roboto`.
 - **Integrações**: scripts fazem chamadas assíncronas ao Apps Script para atualizar dados sem recarregar a página.
 
 ## Pré-requisitos e permissões
