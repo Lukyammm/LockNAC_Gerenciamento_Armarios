@@ -108,18 +108,23 @@
         }
         .brand-name {
             display: inline-flex;
-            gap: 2px;
-            align-items: baseline;
+            gap: 6px;
+            align-items: center;
             letter-spacing: 0.02em;
             font-size: 1.5rem;
-        }
-        .brand-co {
-            font-weight: 700;
-            font-style: italic;
-        }
-        .brand-sign {
             font-weight: 400;
             font-style: normal;
+        }
+        .brand-text {
+            font-weight: 400;
+            font-style: normal;
+            letter-spacing: 0.04em;
+        }
+        .brand-subtitle {
+            font-weight: 400;
+            font-style: normal;
+            font-size: 0.95rem;
+            color: color-mix(in srgb, var(--dark-color) 70%, var(--muted-color) 30%);
         }
         .sidebar-logo-icon {
             width: 54px;
@@ -135,7 +140,7 @@
         }
         .sidebar-title {
             font-size: 1.1rem;
-            font-weight: 600;
+            font-weight: 400;
             letter-spacing: 0.06em;
             text-transform: none;
         }
@@ -1118,6 +1123,37 @@
             display: flex;
             gap: 10px;
             align-items: center;
+        }
+        .btn-toggle-dados {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 12px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            background: var(--surface-color);
+            color: var(--text-color);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 10px 22px var(--shadow-color);
+            white-space: nowrap;
+        }
+        .btn-toggle-dados i {
+            color: var(--muted-color);
+            transition: color 0.2s ease;
+        }
+        .btn-toggle-dados:hover, .btn-toggle-dados:focus-visible {
+            border-color: var(--primary-color);
+            transform: translateY(-1px);
+            box-shadow: 0 12px 26px var(--shadow-color);
+        }
+        .btn-toggle-dados.ativo {
+            background: color-mix(in srgb, var(--primary-color) 12%, var(--surface-color) 88%);
+            border-color: color-mix(in srgb, var(--primary-color) 40%, var(--border-color) 60%);
+            color: color-mix(in srgb, var(--primary-dark) 65%, var(--dark-color) 35%);
+        }
+        .btn-toggle-dados.ativo i {
+            color: color-mix(in srgb, var(--primary-dark) 70%, var(--muted-color) 30%);
         }
         .btn-contingencia {
             display: inline-flex;

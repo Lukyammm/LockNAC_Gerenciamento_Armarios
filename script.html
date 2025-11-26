@@ -34,6 +34,7 @@
                 unidadeAtual: 'todas',
                 filtrosSelecionados: ['todos'],
                 buscaDashboard: '',
+                ocultarDadosDashboard: false,
                 paginaAtual: 'dashboard',
                 armarios: [],
                 armariosCarregados: false,
@@ -609,6 +610,7 @@
             visitaEstendidaInput: document.getElementById('visita-estendida'),
             filterBtns: document.querySelectorAll('.filter-btn'),
             dashboardSearch: document.getElementById('dashboard-search'),
+            toggleDadosButton: document.getElementById('toggle-dados'),
             contingenciaButton: document.getElementById('btn-contingencia'),
             cardsCount: {
                 livres: document.getElementById('livres-count'),
@@ -2130,10 +2132,18 @@
                     renderizarArmarios();
                 });
             }
+            if (elementos.toggleDadosButton) {
+                elementos.toggleDadosButton.addEventListener('click', () => {
+                    estado.ocultarDadosDashboard = !estado.ocultarDadosDashboard;
+                    atualizarToggleDadosDashboard();
+                    renderizarArmarios();
+                });
+            }
             if (elementos.contingenciaButton) {
                 elementos.contingenciaButton.addEventListener('click', abrirCadastroContingencia);
             }
             atualizarBotoesFiltroDashboard();
+            atualizarToggleDadosDashboard();
             const padraoLocalLiberacao = obterDataHoraLocalPadrao();
             if (elementos.liberacaoDataInicio) {
                 const padraoInicio = converterDataTextoParaISO(elementos.liberacaoDataInicio.value) || padraoLocalLiberacao.data;
@@ -2494,6 +2504,22 @@
                 botao.classList.toggle('active', ativos.includes(filtro));
             });
         }
+        function atualizarToggleDadosDashboard() {
+            if (!elementos.toggleDadosButton) {
+                return;
+            }
+            const ocultar = !!estado.ocultarDadosDashboard;
+            elementos.toggleDadosButton.classList.toggle('ativo', ocultar);
+            elementos.toggleDadosButton.setAttribute('aria-pressed', ocultar.toString());
+            const icone = elementos.toggleDadosButton.querySelector('i');
+            const label = elementos.toggleDadosButton.querySelector('.toggle-dados-label');
+            if (icone) {
+                icone.className = ocultar ? 'fas fa-eye-slash' : 'fas fa-eye';
+            }
+            if (label) {
+                label.textContent = ocultar ? 'Exibir dados' : 'Ocultar dados';
+            }
+        }
         function alternarFiltroDashboard(filtroSelecionado) {
             if (!filtroSelecionado || filtroSelecionado === 'todos') {
                 estado.filtrosSelecionados = ['todos'];
@@ -2577,6 +2603,13 @@
                 let detailsHTML = '';
                 if (armario.status === 'livre') {
                     detailsHTML += '<p>Disponível para uso</p>';
+                } else if (estado.ocultarDadosDashboard) {
+                    const paciente = armario.nomePaciente || '-';
+                    const prontuario = armario.prontuario || '-';
+                    detailsHTML += `
+                        <p><strong>Paciente:</strong> ${paciente}</p>
+                        <p><strong>Prontuário:</strong> ${prontuario}</p>
+                    `;
                 } else {
                     const termoHtml = armario.tipo === 'acompanhante'
                         ? `<p><strong>Termo:</strong> ${formatarStatusTermo(armario.termoStatus)}</p>`
