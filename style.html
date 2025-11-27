@@ -2519,11 +2519,12 @@
         /* Responsividade */
         @media (max-width: 992px) {
             :root {
-                --sidebar-width: 220px;
+                --sidebar-width: 96px;
             }
             .sidebar {
                 width: var(--sidebar-width);
                 overflow-y: auto;
+                align-items: center;
             }
             .sidebar-header {
                 padding: 18px 16px 14px;
@@ -2532,25 +2533,29 @@
             .sidebar-title,
             .sidebar-menu span,
             .sidebar-logout-button span {
-                display: inline;
+                display: none;
             }
             .sidebar-menu a {
                 display: flex;
                 align-items: center;
-                gap: 10px;
-                text-align: left;
-                padding: 12px 14px;
-                font-size: 0.95rem;
+                justify-content: center;
+                gap: 0;
+                text-align: center;
+                padding: 14px 0;
+                font-size: 1rem;
                 line-height: 1.2;
+                border-left: none;
             }
             .sidebar-menu i {
-                margin-right: 8px;
-                font-size: 1.05rem;
-                width: 18px;
+                margin-right: 0;
+                font-size: 1.15rem;
+                width: auto;
             }
             .sidebar-logout-button {
-                padding: 12px 14px;
-                justify-content: flex-start;
+                padding: 14px 0;
+                justify-content: center;
+                border: none;
+                gap: 0;
             }
             .main-content {
                 margin-left: var(--sidebar-width);
