@@ -3848,6 +3848,15 @@ function salvarTermoCompleto(dadosTermo) {
     ];
 
     sheet.getRange(linhaExistente, 1, 1, linhaDados.length).setValues([linhaDados]);
+    SpreadsheetApp.flush();
+
+    // Confirmação rápida de persistência para evitar falsos positivos no front-end
+    var linhaGravada = sheet.getRange(linhaExistente, 1, 1, 3).getValues();
+    var idGravado = linhaGravada && linhaGravada[0] ? linhaGravada[0][0] : '';
+    var armarioGravado = linhaGravada && linhaGravada[0] ? linhaGravada[0][1] : '';
+    if (String(idGravado) !== String(termoId) || String(armarioGravado) !== String(dadosTermo.armarioId || '')) {
+      throw new Error('Falha ao confirmar o salvamento do termo. Tente novamente.');
+    }
 
     // 2. Atualizar status do armário na aba "Acompanhantes"
     var cadastroArmario = dadosTermo.cadastroArmario;

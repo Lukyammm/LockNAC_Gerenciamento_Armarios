@@ -5827,6 +5827,7 @@
             dadosTermo.tipo = identificadores?.tipo || 'acompanhante';
             const resultado = await callGoogleScript('salvarTermoCompleto', dadosTermo);
             if (resultado.success) {
+                limparRascunhoTermo();
                 fecharTermoModal();
                 await atualizarDadosPosOperacao('Atualizando informações do armário...');
                 mostrarSucesso('Etapa inicial do termo registrada. Finalize o termo ao encerrar o armário.');
