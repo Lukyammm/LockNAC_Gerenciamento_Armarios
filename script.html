@@ -28,6 +28,18 @@
                 rascunhos: {}
             };
         }
+        function criarEstadoDescarteInicial() {
+            return {
+                itens: [],
+                resumo: {
+                    noPrazo: 0,
+                    alerta: 0,
+                    vencido: 0,
+                    pendenteAlta: 0,
+                    descartado: 0
+                }
+            };
+        }
         function criarEstadoInicial() {
             return {
                 perfilAtual: 'geral',
@@ -50,7 +62,8 @@
                 autenticado: false,
                 usuarioAutenticado: null,
                 liberacao: criarEstadoLiberacaoInicial(),
-                ocupacaoAcompanhantes: criarEstadoOcupacaoAcompanhantesInicial()
+                ocupacaoAcompanhantes: criarEstadoOcupacaoAcompanhantesInicial(),
+                descarte: criarEstadoDescarteInicial()
             };
         }
         let estado = criarEstadoInicial();
@@ -590,6 +603,12 @@
             notificationPanel: document.getElementById('notification-panel'),
             notificationBadge: document.querySelector('.notification-badge'),
             armariosContainer: document.getElementById('armarios-container'),
+            descarteLista: document.getElementById('descarte-lista'),
+            descarteVencido: document.getElementById('descarte-vencido'),
+            descarteAlerta: document.getElementById('descarte-alerta'),
+            descarteNoPrazo: document.getElementById('descarte-prazo'),
+            descartePendenteAlta: document.getElementById('descarte-pendente'),
+            descarteDescartado: document.getElementById('descarte-descartado'),
             armarioModal: document.getElementById('armario-modal'),
             usuarioModal: document.getElementById('usuario-modal'),
             modalTitle: document.getElementById('modal-title'),
@@ -1655,7 +1674,8 @@
                     executarCarregamentoSeguro('carregar armários', () => carregarArmarios({ forcarAtualizacao: true })),
                     executarCarregamentoSeguro('carregar usuários', carregarUsuarios),
                     executarCarregamentoSeguro('carregar estatísticas', carregarEstatisticas),
-                    executarCarregamentoSeguro('carregar notificações', carregarNotificacoes)
+                    executarCarregamentoSeguro('carregar notificações', carregarNotificacoes),
+                    executarCarregamentoSeguro('carregar descarte', carregarDescarte)
                 ]);
 
                 const resultados = [carregamentoUnidades, carregamentoSetores, ...demaisCarregamentos];
@@ -1699,6 +1719,10 @@
                     numero: normalizarIdentificador(armario.numero),
                     unidade: armario.unidade ? armario.unidade.trim() : '',
                     prontuario: armario.prontuario ? armario.prontuario.toString().trim() : '',
+                    pacienteDeAlta: Boolean(armario.pacienteDeAlta),
+                    destinoAtual: armario.destinoAtual ? armario.destinoAtual.toString().trim() : '',
+                    dataAltaReferencia: armario.dataAltaReferencia || '',
+                    dataAltaIso: armario.dataAltaIso || '',
                     visitaEstendida: Boolean(armario.visitaEstendida),
                     ehContingencia: Boolean(armario.ehContingencia) || normalizarTexto(armario.numero || '').startsWith('contingencia')
                 }));
@@ -1709,6 +1733,40 @@
             }
 
             estado.armariosCarregados = false;
+            return false;
+        }
+        async function carregarDescarte() {
+            if (!estado.autenticado) {
+                return false;
+            }
+
+            const resultado = await callGoogleScript('getDescarte');
+            const resumoPadrao = criarEstadoDescarteInicial().resumo;
+
+            if (resultado.success) {
+                const itensProcessados = (resultado.data?.itens || []).map(item => ({
+                    ...item,
+                    prontuario: item.prontuario ? item.prontuario.toString().trim() : '',
+                    paciente: item.paciente ? item.paciente.toString().trim() : '',
+                    item: item.item ? item.item.toString().trim() : '',
+                    armario: item.armario ? item.armario.toString().trim() : '',
+                    dataAlta: item.dataAlta || '',
+                    dataLimite: item.dataLimite || '',
+                    descartadoEm: item.descartadoEm || '',
+                    diasRestantes: Number.isFinite(item.diasRestantes) ? item.diasRestantes : null,
+                    status: item.status || 'pendente-alta'
+                }));
+
+                estado.descarte = {
+                    itens: itensProcessados,
+                    resumo: { ...resumoPadrao, ...(resultado.data?.resumo || {}) }
+                };
+                renderizarDescarte();
+                return true;
+            }
+
+            estado.descarte = criarEstadoDescarteInicial();
+            renderizarDescarte();
             return false;
         }
         async function carregarUnidades() {
@@ -1899,9 +1957,10 @@
         async function atualizarDadosPosOperacao(mensagemCarregamento = 'Atualizando informações...', posAtualizacaoLocal) {
             const finalizarOverlay = mostrarOverlayCarregamento(mensagemCarregamento);
             try {
-                const [resultadoArmarios, resultadoEstatisticas] = await Promise.allSettled([
+                const [resultadoArmarios, resultadoEstatisticas, resultadoDescarte] = await Promise.allSettled([
                     carregarArmarios({ forcarAtualizacao: true }),
-                    carregarEstatisticas()
+                    carregarEstatisticas(),
+                    carregarDescarte()
                 ]);
 
                 if (resultadoArmarios.status === 'rejected') {
@@ -1912,6 +1971,9 @@
 
                 if (resultadoEstatisticas.status === 'rejected') {
                     console.error('Erro ao atualizar estatísticas após operação:', resultadoEstatisticas.reason);
+                }
+                if (resultadoDescarte && resultadoDescarte.status === 'rejected') {
+                    console.error('Erro ao atualizar descarte após operação:', resultadoDescarte.reason);
                 }
 
                 if (typeof posAtualizacaoLocal === 'function') {
@@ -2479,6 +2541,7 @@
             atualizarVisibilidadeContingencia();
             // Renderizar armários
             if (estado.paginaAtual === 'dashboard') {
+                renderizarDescarte();
                 renderizarArmarios();
             }
         }
@@ -2563,6 +2626,122 @@
             const statusNormalizado = normalizarTexto(armario.status);
             return numeroNormalizado.startsWith('contingencia') || statusNormalizado === 'contingencia';
         }
+        function obterResumoDescartePadrao() {
+            return criarEstadoDescarteInicial().resumo;
+        }
+        function formatarRotuloStatusDescarte(status) {
+            const chave = normalizarTexto(status);
+            switch (chave) {
+                case 'vencido':
+                    return 'Vencido';
+                case 'alerta':
+                    return 'Vence em 48h';
+                case 'no-prazo':
+                    return 'No prazo';
+                case 'descartado':
+                    return 'Descartado';
+                default:
+                    return 'Aguardando alta';
+            }
+        }
+        function renderizarDescarte() {
+            const resumo = estado.descarte?.resumo || obterResumoDescartePadrao();
+            if (elementos.descarteVencido) elementos.descarteVencido.textContent = resumo.vencido || 0;
+            if (elementos.descarteAlerta) elementos.descarteAlerta.textContent = resumo.alerta || 0;
+            if (elementos.descarteNoPrazo) elementos.descarteNoPrazo.textContent = resumo.noPrazo || 0;
+            if (elementos.descartePendenteAlta) elementos.descartePendenteAlta.textContent = resumo.pendenteAlta || 0;
+            if (elementos.descarteDescartado) elementos.descarteDescartado.textContent = resumo.descartado || 0;
+
+            const container = elementos.descarteLista;
+            if (!container) return;
+            container.innerHTML = '';
+
+            const itens = Array.isArray(estado.descarte?.itens) ? [...estado.descarte.itens] : [];
+            if (!itens.length) {
+                const vazio = document.createElement('div');
+                vazio.className = 'descarte-vazio';
+                vazio.textContent = 'Nenhum item aguardando descarte.';
+                container.appendChild(vazio);
+                return;
+            }
+
+            const pesos = { vencido: 0, alerta: 1, 'no-prazo': 2, 'pendente-alta': 3, descartado: 4 };
+            itens.sort((a, b) => {
+                const pesoA = pesos[normalizarTexto(a.status)] ?? 99;
+                const pesoB = pesos[normalizarTexto(b.status)] ?? 99;
+                if (pesoA !== pesoB) return pesoA - pesoB;
+                const diasA = Number.isFinite(a.diasRestantes) ? a.diasRestantes : 999;
+                const diasB = Number.isFinite(b.diasRestantes) ? b.diasRestantes : 999;
+                return diasA - diasB;
+            });
+
+            itens.forEach(item => {
+                const statusClasse = normalizarTexto(item.status) || 'pendente-alta';
+                const card = document.createElement('div');
+                card.className = 'descarte-card';
+
+                const linhaTopo = document.createElement('div');
+                linhaTopo.className = 'linha';
+                const titulo = document.createElement('div');
+                titulo.className = 'titulo';
+                titulo.textContent = item.paciente || '-';
+                const prontuario = document.createElement('span');
+                prontuario.className = 'detalhe';
+                prontuario.textContent = `Pront. ${item.prontuario || '-'}`;
+                titulo.appendChild(document.createTextNode(' '));
+                titulo.appendChild(prontuario);
+                const statusTag = document.createElement('span');
+                statusTag.className = `descarte-status ${statusClasse}`;
+                statusTag.textContent = formatarRotuloStatusDescarte(statusClasse);
+                linhaTopo.append(titulo, statusTag);
+
+                const linhaItem = document.createElement('div');
+                linhaItem.className = 'linha';
+                const itemDescricao = document.createElement('span');
+                itemDescricao.className = 'detalhe';
+                itemDescricao.textContent = item.item || 'Volume não informado';
+                linhaItem.appendChild(itemDescricao);
+                if (item.armario) {
+                    const armarioInfo = document.createElement('span');
+                    armarioInfo.className = 'detalhe';
+                    armarioInfo.textContent = `Armário ${item.armario}`;
+                    linhaItem.appendChild(armarioInfo);
+                }
+
+                const datas = document.createElement('div');
+                datas.className = 'descarte-datas';
+                const altaSpan = document.createElement('span');
+                altaSpan.textContent = `Alta: ${formatarData(item.dataAlta)}`;
+                const limiteSpan = document.createElement('span');
+                limiteSpan.textContent = `Limite: ${formatarData(item.dataLimite)}`;
+                datas.append(altaSpan, limiteSpan);
+
+                const diasSpan = document.createElement('span');
+                if (statusClasse === 'descartado' && item.descartadoEm) {
+                    diasSpan.textContent = `Descartado em ${formatarData(item.descartadoEm)}`;
+                } else if (statusClasse === 'vencido' || statusClasse === 'alerta' || statusClasse === 'no-prazo') {
+                    if (Number.isFinite(item.diasRestantes)) {
+                        diasSpan.textContent = statusClasse === 'vencido'
+                            ? `Atraso: ${Math.abs(item.diasRestantes)} dia(s)`
+                            : `Restam ${item.diasRestantes} dia(s)`;
+                    }
+                } else if (statusClasse === 'pendente-alta') {
+                    diasSpan.textContent = 'Alta não encontrada na base';
+                }
+                if (diasSpan.textContent) {
+                    datas.appendChild(diasSpan);
+                }
+                if (item.destinoAtual) {
+                    const destino = document.createElement('span');
+                    destino.className = 'detalhe';
+                    destino.textContent = `Destino: ${item.destinoAtual}`;
+                    datas.appendChild(destino);
+                }
+
+                card.append(linhaTopo, linhaItem, datas);
+                container.appendChild(card);
+            });
+        }
         // Renderizar lista de armários no dashboard
         function renderizarArmarios() {
             elementos.armariosContainer.innerHTML = '';
@@ -2598,6 +2777,9 @@
                 if (armario.visitaEstendida) {
                     card.classList.add('visita-estendida');
                 }
+                if (armario.pacienteDeAlta) {
+                    card.classList.add('alta-registrada');
+                }
                 const rascunho = estado.ocupacaoAcompanhantes?.rascunhos?.[armario.id];
                 const rascunhoAtivo = normalizarTexto(armario.tipo) === 'acompanhante' && rascunhoOcupacaoTemDados(rascunho);
                 let detailsHTML = '';
@@ -2616,6 +2798,9 @@
                         : '';
                     const dataRegistroFormatada = formatarDataComDiaSemana(armario.dataRegistro);
                     const dataRegistroHtml = `<p><strong>Data:</strong> ${dataRegistroFormatada}</p>`;
+                    const altaInfoHtml = armario.pacienteDeAlta
+                        ? `<p class="armario-alerta-info"><i class="fas fa-heartbeat" aria-hidden="true"></i> Alta em ${formatarData(armario.dataAltaReferencia)}${armario.destinoAtual ? ` • Destino: ${armario.destinoAtual}` : ''}</p>`
+                        : '';
                     detailsHTML += `
                         <p><strong>${armario.tipo === 'acompanhante' ? 'Acompanhante' : 'Visitante'}:</strong> ${armario.nomeVisitante}</p>
                         <p><strong>Paciente:</strong> ${armario.nomePaciente}</p>
@@ -2629,6 +2814,7 @@
                             : (armario.horaPrevista ? `<p><strong>Previsão de saída:</strong> ${armario.horaPrevista}</p>` : '')}
                         ${termoHtml}
                         ${dataRegistroHtml}
+                        ${altaInfoHtml}
                     `;
                 }
                 const statusTexto = armarioEhContingencia(armario)
@@ -2648,11 +2834,15 @@
                 const destaqueVisita = armario.visitaEstendida
                     ? `<div class="armario-highlight"><span class="visita-estendida-tag"><i class="fas fa-infinity" aria-hidden="true"></i> Visita estendida</span></div>`
                     : '';
+                const alertaAltaChip = armario.pacienteDeAlta
+                    ? '<span class="alerta-alta-chip" title="Alta registrada na planilha Base Vitae 1">Alta registrada</span>'
+                    : '';
                 card.innerHTML = `
                     <div class="armario-header">
                         <div class="armario-number">${armario.numero}</div>
                         <div class="armario-header-right">
                             ${destaqueVisita}
+                            ${alertaAltaChip}
                             ${rascunhoAtivo ? '<span class="armario-draft-badge" title="Pré-cadastro incompleto nesta estação">Incompleto</span>' : ''}
                             ${statusHtml}
                         </div>

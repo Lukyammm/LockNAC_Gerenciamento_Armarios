@@ -196,6 +196,24 @@
                         </button>
                     </div>
                 </div>
+                <div class="descarte-panel" aria-live="polite">
+                    <div class="descarte-header">
+                        <div>
+                            <h3>Descarte após alta</h3>
+                            <p>Contagem de 15 dias a partir da última alta registrada.</p>
+                        </div>
+                        <div class="descarte-summary">
+                            <span class="descarte-chip danger">Vencidos: <strong id="descarte-vencido">0</strong></span>
+                            <span class="descarte-chip warning">Vencem em 48h: <strong id="descarte-alerta">0</strong></span>
+                            <span class="descarte-chip success">No prazo: <strong id="descarte-prazo">0</strong></span>
+                            <span class="descarte-chip muted">Sem data de alta: <strong id="descarte-pendente">0</strong></span>
+                            <span class="descarte-chip info">Descartados: <strong id="descarte-descartado">0</strong></span>
+                        </div>
+                    </div>
+                    <div class="descarte-lista" id="descarte-lista">
+                        <!-- Itens de descarte renderizados via JS -->
+                    </div>
+                </div>
                 <!-- Tabela de Armários -->
                 <div class="armarios-grid" id="armarios-container">
                     <!-- Os armários serão carregados aqui via JavaScript -->

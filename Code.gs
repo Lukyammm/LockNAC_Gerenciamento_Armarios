@@ -1015,8 +1015,50 @@ function determinarResponsavelRegistro(valorPreferencial) {
   if (valorPreferencial !== undefined && valorPreferencial !== null) {
     var texto = valorPreferencial.toString().trim();
     if (texto) {
-      return texto;
+  return texto;
+}
+
+function obterDataValida(valor) {
+  if (!valor) {
+    return null;
+  }
+  if (Object.prototype.toString.call(valor) === '[object Date]' && !isNaN(valor.getTime())) {
+    return new Date(valor.getTime());
+  }
+  if (typeof valor === 'number' && isFinite(valor)) {
+    var dataNumero = new Date(valor);
+    return isNaN(dataNumero.getTime()) ? null : dataNumero;
+  }
+  if (typeof valor === 'string') {
+    var texto = valor.trim();
+    if (!texto) {
+      return null;
     }
+    var dataPorBarras = texto.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (dataPorBarras) {
+      var dia = parseInt(dataPorBarras[1], 10);
+      var mes = parseInt(dataPorBarras[2], 10) - 1;
+      var ano = parseInt(dataPorBarras[3], 10);
+      var dataLocal = new Date(ano, mes, dia);
+      return isNaN(dataLocal.getTime()) ? null : dataLocal;
+    }
+    var textoISO = texto.replace(' ', 'T');
+    var dataISO = new Date(textoISO);
+    if (!isNaN(dataISO.getTime())) {
+      return dataISO;
+    }
+  }
+  return null;
+}
+
+function adicionarDias(data, dias) {
+  if (!data || isNaN(data.getTime())) {
+    return null;
+  }
+  var novaData = new Date(data.getTime());
+  novaData.setDate(novaData.getDate() + dias);
+  return novaData;
+}
   }
 
   if (usuarioContextoRequisicao) {
@@ -1214,7 +1256,11 @@ function handlePost(e) {
       case 'getEstatisticasDashboard':
         return ContentService.createTextOutput(JSON.stringify(getEstatisticasDashboard(e.parameter.tipoUsuario)))
           .setMimeType(ContentService.MimeType.JSON);
-      
+
+      case 'getDescarte':
+        return ContentService.createTextOutput(JSON.stringify(getItensDescarte()))
+          .setMimeType(ContentService.MimeType.JSON);
+
       case 'getHistorico':
         return ContentService.createTextOutput(JSON.stringify(getHistorico(e.parameter.tipo)))
           .setMimeType(ContentService.MimeType.JSON);
@@ -1289,6 +1335,76 @@ function handlePost(e) {
 }
 
 // Funções para Armários
+function obterMapaInternacoesBaseVitae() {
+  var chaveCache = montarChaveCache('base-vitae', 'internacoes');
+  var resultado = executarComCache(chaveCache, CACHE_TTL_PADRAO, function() {
+    try {
+      var ss = SpreadsheetApp.getActiveSpreadsheet();
+      var sheet = ss.getSheetByName('Base Vitae 1');
+      if (!sheet || sheet.getLastRow() < 2) {
+        return { success: true, data: {} };
+      }
+
+      var estrutura = obterEstruturaPlanilha(sheet);
+      var totalLinhas = sheet.getLastRow() - 1;
+      var totalColunas = estrutura.ultimaColuna || sheet.getLastColumn();
+      var dados = sheet.getRange(2, 1, totalLinhas, totalColunas).getValues();
+
+      var prontuarioIndex = obterIndiceColuna(estrutura, ['prontuario'], 0);
+      var entradaIndex = obterIndiceColuna(estrutura, ['entrada', 'data entrada'], 12);
+      var saidaIndex = obterIndiceColuna(estrutura, ['saida', 'saída'], 13);
+      var destinoIndex = obterIndiceColuna(estrutura, ['destino'], 16);
+
+      var mapa = {};
+
+      dados.forEach(function(linha, idx) {
+        var prontuarioValor = obterValorLinhaFlexivel(linha, estrutura, ['prontuario'], linha[prontuarioIndex]);
+        var prontuario = normalizarIdentificador(prontuarioValor);
+        if (!prontuario) {
+          return;
+        }
+
+        var destinoBruto = destinoIndex > -1 ? linha[destinoIndex] : '';
+        var destinoNormalizado = normalizarTextoBasico(destinoBruto);
+        var entradaData = entradaIndex > -1 ? obterDataValida(linha[entradaIndex]) : null;
+        var saidaData = saidaIndex > -1 ? obterDataValida(linha[saidaIndex]) : null;
+        var dataReferencia = saidaData || entradaData || new Date(0);
+
+        var registroAtual = mapa[prontuario];
+        if (registroAtual && registroAtual.dataReferencia && registroAtual.dataReferencia.getTime() > dataReferencia.getTime()) {
+          return;
+        }
+
+        var internado = destinoNormalizado === 'encontra-se internado' || destinoNormalizado === 'encontrase internado';
+        var ultimaAlta = registroAtual && registroAtual.ultimaAlta ? registroAtual.ultimaAlta : null;
+
+        if (!internado && saidaData) {
+          if (!ultimaAlta || saidaData.getTime() > ultimaAlta.getTime()) {
+            ultimaAlta = saidaData;
+          }
+        }
+
+        mapa[prontuario] = {
+          internadoAtual: internado,
+          destinoAtual: destinoBruto || '',
+          dataReferencia: dataReferencia,
+          ultimaAlta: ultimaAlta
+        };
+      });
+
+      return { success: true, data: mapa };
+    } catch (erro) {
+      registrarLog('ERRO', 'Falha ao mapear Base Vitae: ' + erro.toString());
+      return { success: true, data: {} };
+    }
+  });
+
+  if (resultado && resultado.success && resultado.data) {
+    return resultado.data;
+  }
+  return {};
+}
+
 function getArmarios(tipo) {
   var tipoNormalizadoOriginal = normalizarTextoBasico(tipo);
   if (!tipoNormalizadoOriginal) {
@@ -1304,6 +1420,7 @@ function getArmarios(tipo) {
 
   return executarComCache(chaveCache, CACHE_TTL_ARMARIOS, function() {
     try {
+      var mapaInternacoes = obterMapaInternacoesBaseVitae();
       var tipoNormalizado = tipoNormalizadoOriginal;
       var incluirTermos = tipoNormalizado === 'acompanhante' || tipoNormalizado === 'admin' ||
         tipoNormalizado === 'ambos' || tipoNormalizado === 'todos' || tipoNormalizado === 'geral';
@@ -1361,14 +1478,14 @@ function getArmarios(tipo) {
       }
 
       if (tipoNormalizado === 'admin' || tipoNormalizado === 'ambos' || tipoNormalizado === 'todos' || tipoNormalizado === 'geral') {
-        var visitantes = getArmariosFromSheet('Visitantes', 'visitante', null);
-        var acompanhantes = getArmariosFromSheet('Acompanhantes', 'acompanhante', termosMap);
+        var visitantes = getArmariosFromSheet('Visitantes', 'visitante', null, mapaInternacoes);
+        var acompanhantes = getArmariosFromSheet('Acompanhantes', 'acompanhante', termosMap, mapaInternacoes);
         return { success: true, data: visitantes.concat(acompanhantes) };
       }
 
       var sheetName = tipoNormalizado === 'acompanhante' ? 'Acompanhantes' : 'Visitantes';
       var mapa = tipoNormalizado === 'acompanhante' ? termosMap : null;
-      return { success: true, data: getArmariosFromSheet(sheetName, tipoNormalizado, mapa) };
+      return { success: true, data: getArmariosFromSheet(sheetName, tipoNormalizado, mapa, mapaInternacoes) };
     } catch (error) {
       registrarLog('ERRO', `Erro ao buscar armários: ${error.toString()}`);
       return { success: false, error: error.toString() };
@@ -1376,7 +1493,7 @@ function getArmarios(tipo) {
   });
 }
 
-function getArmariosFromSheet(sheetName, tipo, termosMap) {
+function getArmariosFromSheet(sheetName, tipo, termosMap, mapaInternacoes) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName(sheetName);
 
@@ -1473,6 +1590,8 @@ function getArmariosFromSheet(sheetName, tipo, termosMap) {
     var numeroNormalizado = normalizarNumeroArmario(numeroBruto);
     var idInterface = montarChaveArmarioInterface(tipo, numeroNormalizado, idPlanilha);
     var ehContingencia = ehNumeroContingencia(numeroNormalizado) || status === 'contingencia';
+    var prontuarioNormalizado = normalizarIdentificador(obterValorLinha(row, estrutura, 'prontuario', ''));
+    var infoInternacao = prontuarioNormalizado && mapaInternacoes ? mapaInternacoes[prontuarioNormalizado] : null;
 
     var armario = {
       id: idInterface,
@@ -1481,7 +1600,7 @@ function getArmariosFromSheet(sheetName, tipo, termosMap) {
       status: status,
       nomeVisitante: obterValorLinha(row, estrutura, nomeChaves, row[nomeIndex] || ''),
       nomePaciente: row[pacienteIndex] || '',
-      prontuario: obterValorLinha(row, estrutura, 'prontuario', ''),
+      prontuario: prontuarioNormalizado,
       leito: row[leitoIndex] || '',
       volumes: row[volumesIndex] || 0,
       horaInicio: formatarHorarioPlanilha(row[horaInicioIndex]),
@@ -1490,7 +1609,11 @@ function getArmariosFromSheet(sheetName, tipo, termosMap) {
       termoAplicado: termoIndex !== null && termoIndex !== undefined ? converterParaBoolean(row[termoIndex]) : false,
       whatsapp: whatsappIndex !== null && whatsappIndex !== undefined ? (row[whatsappIndex] || '') : '',
       observacoes: observacoesIndex !== null && observacoesIndex !== undefined ? (row[observacoesIndex] || '') : '',
-      ehContingencia: ehContingencia
+      ehContingencia: ehContingencia,
+      pacienteDeAlta: infoInternacao ? !infoInternacao.internadoAtual : false,
+      destinoAtual: infoInternacao ? (infoInternacao.destinoAtual || '') : '',
+      dataAltaReferencia: infoInternacao && infoInternacao.ultimaAlta ? formatarDataPlanilha(infoInternacao.ultimaAlta) : '',
+      dataAltaIso: infoInternacao && infoInternacao.ultimaAlta ? infoInternacao.ultimaAlta.toISOString() : ''
     };
 
     if (isVisitante) {
@@ -4865,6 +4988,104 @@ function getEstatisticasDashboard(tipoUsuario) {
   } catch (error) {
     return { success: false, error: error.toString() };
   }
+}
+
+function getItensDescarte() {
+  var chaveCache = montarChaveCache('descarte', 'painel');
+  return executarComCache(chaveCache, CACHE_TTL_PADRAO, function() {
+    try {
+      var ss = SpreadsheetApp.getActiveSpreadsheet();
+      var sheet = ss.getSheetByName('descarte');
+      var mapaInternacoes = obterMapaInternacoesBaseVitae();
+
+      if (!sheet || sheet.getLastRow() < 2) {
+        return { success: true, data: { itens: [], resumo: {} } };
+      }
+
+      var estrutura = obterEstruturaPlanilha(sheet);
+      var totalLinhas = sheet.getLastRow() - 1;
+      var totalColunas = estrutura.ultimaColuna || sheet.getLastColumn();
+      var dados = sheet.getRange(2, 1, totalLinhas, totalColunas).getValues();
+
+      var prontuarioIndex = obterIndiceColuna(estrutura, ['prontuario'], 0);
+      var pacienteIndex = obterIndiceColuna(estrutura, ['paciente', 'nome paciente'], 1);
+      var itemIndex = obterIndiceColuna(estrutura, ['item', 'descricao', 'descrição', 'objeto'], 2);
+      var armarioIndex = obterIndiceColuna(estrutura, ['armario', 'armário', 'numero armario', 'número armário'], 3);
+      var dataAltaIndex = obterIndiceColuna(estrutura, ['data alta', 'alta', 'alta em'], 4);
+      var descartadoIndex = obterIndiceColuna(estrutura, ['descartado em', 'data descarte', 'descarte'], -1);
+
+      var resumo = {
+        noPrazo: 0,
+        alerta: 0,
+        vencido: 0,
+        pendenteAlta: 0,
+        descartado: 0
+      };
+
+      var hoje = new Date();
+      var itens = dados.map(function(linha) {
+        var prontuarioValor = obterValorLinhaFlexivel(linha, estrutura, ['prontuario'], linha[prontuarioIndex]);
+        var prontuario = normalizarIdentificador(prontuarioValor);
+        if (!prontuario) {
+          return null;
+        }
+
+        var infoPaciente = mapaInternacoes[prontuario] || null;
+        var paciente = obterValorLinhaFlexivel(linha, estrutura, ['paciente', 'nome paciente'], linha[pacienteIndex]);
+        var itemDescricao = obterValorLinhaFlexivel(linha, estrutura, ['item', 'descricao', 'descrição', 'objeto'], linha[itemIndex]);
+        var armario = obterValorLinhaFlexivel(linha, estrutura, ['armario', 'armário', 'numero armario', 'número armário'], linha[armarioIndex]);
+        var dataAltaPlanilha = dataAltaIndex > -1 ? linha[dataAltaIndex] : '';
+        var dataAlta = obterDataValida(dataAltaPlanilha) || (infoPaciente ? infoPaciente.ultimaAlta : null);
+        var descartadoEm = descartadoIndex > -1 ? obterDataValida(linha[descartadoIndex]) : null;
+        var dataLimite = dataAlta ? adicionarDias(dataAlta, 15) : null;
+        var diasRestantes = null;
+        var status = 'pendente-alta';
+
+        if (descartadoEm) {
+          status = 'descartado';
+        } else if (dataAlta) {
+          diasRestantes = Math.ceil((dataLimite.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
+          if (diasRestantes <= 0) {
+            status = 'vencido';
+          } else if (diasRestantes <= 2) {
+            status = 'alerta';
+          } else {
+            status = 'no-prazo';
+          }
+        }
+
+        if (status === 'no-prazo') {
+          resumo.noPrazo++;
+        } else if (status === 'alerta') {
+          resumo.alerta++;
+        } else if (status === 'vencido') {
+          resumo.vencido++;
+        } else if (status === 'descartado') {
+          resumo.descartado++;
+        } else {
+          resumo.pendenteAlta++;
+        }
+
+        return {
+          prontuario: prontuario,
+          paciente: paciente || '',
+          item: itemDescricao || '',
+          armario: armario || '',
+          dataAlta: dataAlta ? dataAlta.toISOString() : '',
+          dataLimite: dataLimite ? dataLimite.toISOString() : '',
+          diasRestantes: diasRestantes,
+          status: status,
+          descartadoEm: descartadoEm ? descartadoEm.toISOString() : '',
+          destinoAtual: infoPaciente ? (infoPaciente.destinoAtual || '') : ''
+        };
+      }).filter(Boolean);
+
+      return { success: true, data: { itens: itens, resumo: resumo } };
+    } catch (error) {
+      registrarLog('ERRO', 'Erro ao ler aba descarte: ' + error.toString());
+      return { success: false, error: error.toString() };
+    }
+  });
 }
 
 // Função para verificar se o sistema está inicializado
