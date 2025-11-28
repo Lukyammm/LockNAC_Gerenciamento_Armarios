@@ -4376,8 +4376,8 @@ function gerarESalvarTermoPDF(dadosTermo) {
 function criarHTMLTermo(dadosTermo) {
   var hospitalNome = 'Hospital Universitário do Ceará';
   var orientacoesPredefinidas = [
-    'Meus pertences estão sob minha guarda e responsabilidade;',
-    'Em caso de piora clínica, meus pertences serão recolhidos e protocolados no NAC;',
+    'Os meus pertences ficam sob guarda e responsabilidade da unidade; os itens que estou levando para o leito permanecem sob minha responsabilidade.',
+    'Em caso de piora clínica, o serviço social/NAC entrará em contato com a família para recolher os pertences;',
     'Após 15 dias da alta ou transferência, os itens não retirados poderão ser descartados conforme as normas vigentes.'
   ];
   var orientacoes = [];
