@@ -3870,6 +3870,19 @@ function salvarTermoCompleto(dadosTermo) {
 
     var precisaAtualizarCadastro = cadastroArmario && String(cadastroArmario.id) === String(dadosTermo.armarioId);
 
+    var dadosCadastroTermo = null;
+    if (precisaAtualizarCadastro) {
+      dadosCadastroTermo = cadastroArmario;
+    } else if (linhaAcompanhante > -1) {
+      var linhaAtual = dadosAcompanhantes[linhaAcompanhante] || [];
+      dadosCadastroTermo = {
+        nomeVisitante: dadosTermo.acompanhante || obterValorLinha(linhaAtual, estruturaAcompanhantes, CABECALHOS_NOME_ACOMPANHANTE, ''),
+        nomePaciente: dadosTermo.paciente || obterValorLinha(linhaAtual, estruturaAcompanhantes, 'nome paciente', ''),
+        leito: dadosTermo.leito || obterValorLinha(linhaAtual, estruturaAcompanhantes, 'leito', ''),
+        whatsapp: dadosTermo.telefone || obterValorLinha(linhaAtual, estruturaAcompanhantes, CABECALHOS_WHATSAPP, '')
+      };
+    }
+
     if (linhaAcompanhante > -1 && sheetAcompanhantes && estruturaAcompanhantes) {
       var totalColunasAcompanhantes = estruturaAcompanhantes.ultimaColuna || 12;
       var linhaAtualizada = dadosAcompanhantes[linhaAcompanhante] ? dadosAcompanhantes[linhaAcompanhante].slice() : [];
@@ -3881,7 +3894,7 @@ function salvarTermoCompleto(dadosTermo) {
       definirValorLinha(linhaAtualizada, estruturaAcompanhantes, 'volumes', totalVolumes);
       definirValorLinha(linhaAtualizada, estruturaAcompanhantes, 'termo aplicado', true);
 
-      if (precisaAtualizarCadastro) {
+      if (dadosCadastroTermo) {
         var statusAtual = normalizarTextoBasico(obterValorLinha(linhaAtualizada, estruturaAcompanhantes, 'status', ''));
         if (statusAtual && statusAtual !== 'livre') {
           throw new Error('Armário já está em uso. Atualize a lista e tente novamente.');
@@ -3891,13 +3904,13 @@ function salvarTermoCompleto(dadosTermo) {
         var horaInicioCadastro = dataHoraAtualCadastro.horaCurta;
         var dataRegistroCadastro = dataHoraAtualCadastro.dataHoraIso;
         var unidadeAtual = obterValorLinha(linhaAtualizada, estruturaAcompanhantes, 'unidade', '');
-        var whatsappCadastro = cadastroArmario.whatsapp ? cadastroArmario.whatsapp.toString().trim() : '';
+        var whatsappCadastro = dadosCadastroTermo.whatsapp ? dadosCadastroTermo.whatsapp.toString().trim() : '';
         var nomeColunaCadastro = CABECALHOS_NOME_ACOMPANHANTE;
 
         definirValorLinha(linhaAtualizada, estruturaAcompanhantes, 'status', 'em-uso');
-        definirValorLinha(linhaAtualizada, estruturaAcompanhantes, nomeColunaCadastro, cadastroArmario.nomeVisitante || dadosTermo.acompanhante || '');
-        definirValorLinha(linhaAtualizada, estruturaAcompanhantes, 'nome paciente', cadastroArmario.nomePaciente || dadosTermo.paciente || '');
-        definirValorLinha(linhaAtualizada, estruturaAcompanhantes, 'leito', cadastroArmario.leito || dadosTermo.leito || '');
+        definirValorLinha(linhaAtualizada, estruturaAcompanhantes, nomeColunaCadastro, dadosCadastroTermo.nomeVisitante || '');
+        definirValorLinha(linhaAtualizada, estruturaAcompanhantes, 'nome paciente', dadosCadastroTermo.nomePaciente || '');
+        definirValorLinha(linhaAtualizada, estruturaAcompanhantes, 'leito', dadosCadastroTermo.leito || '');
         definirValorLinha(linhaAtualizada, estruturaAcompanhantes, 'hora inicio', horaInicioCadastro);
         definirValorLinha(linhaAtualizada, estruturaAcompanhantes, 'hora prevista', '');
         definirValorLinha(linhaAtualizada, estruturaAcompanhantes, 'data registro', dataRegistroCadastro);
@@ -3915,9 +3928,9 @@ function salvarTermoCompleto(dadosTermo) {
             historicoId,
             dataRegistroCadastro,
             numeroArmarioOficial,
-            cadastroArmario.nomeVisitante || dadosTermo.acompanhante || '',
-            cadastroArmario.nomePaciente || dadosTermo.paciente || '',
-            cadastroArmario.leito || dadosTermo.leito || '',
+            dadosCadastroTermo.nomeVisitante || '',
+            dadosCadastroTermo.nomePaciente || '',
+            dadosCadastroTermo.leito || '',
             totalVolumes,
             horaInicioCadastro,
             '',
