@@ -294,106 +294,11 @@
         function limparRascunhoArmario() {
             removerRascunhoChave(STORAGE_KEYS.rascunhoArmario);
         }
-        function coletarRascunhoTermo() {
-            const meta = {
-                armarioId: normalizarIdentificador(termoArmarioAtual || ''),
-                numero: (elementos.termoArmario?.textContent || '').toString().trim()
-            };
-            const nascimentoValor = elementos.termoNascimento?.value || '';
-            return {
-                meta,
-                passo: termoPassoAtual,
-                valores: {
-                    paciente: document.getElementById('termo-paciente')?.value || '',
-                    prontuario: document.getElementById('termo-prontuario')?.value || '',
-                    nascimento: nascimentoValor,
-                    setor: elementos.termoSetor?.value || '',
-                    leito: document.getElementById('termo-leito')?.value || '',
-                    consciente: document.querySelector('input[name="termo-consciente"]:checked')?.value || '',
-                    acompanhante: document.getElementById('termo-resp-nome')?.value || '',
-                    telefone: document.getElementById('termo-resp-telefone')?.value || '',
-                    documento: document.getElementById('termo-resp-doc')?.value || '',
-                    parentesco: document.getElementById('termo-resp-parentesco')?.value || ''
-                },
-                orientacoes: ['ori1', 'ori2', 'ori3'].filter(chave => document.getElementById(`termo-${chave}`)?.checked),
-                volumes: obterVolumesTermo(),
-                assinatura: termoAssinaturaDesenhada && elementos.termoAssinaturaCanvas
-                    ? elementos.termoAssinaturaCanvas.toDataURL('image/png')
-                    : ''
-            };
-        }
         function salvarRascunhoTermo() {
-            if (termoArmarioAtual === null) return;
-            const storage = obterArmazenamentoLocal();
-            if (!storage) return;
-            const rascunho = coletarRascunhoTermo();
-            const campos = [rascunho.valores.paciente, rascunho.valores.prontuario, rascunho.valores.nascimento,
-                rascunho.valores.setor, rascunho.valores.leito, rascunho.valores.consciente, rascunho.valores.acompanhante,
-                rascunho.valores.telefone, rascunho.valores.documento, rascunho.valores.parentesco];
-            const possuiDados = campos.some(valor => (valor || '').toString().trim())
-                || (rascunho.orientacoes && rascunho.orientacoes.length > 0)
-                || (rascunho.volumes && rascunho.volumes.some(v => (v.quantidade || v.descricao)))
-                || Boolean(rascunho.assinatura);
-            try {
-                if (!possuiDados) {
-                    removerRascunhoChave(STORAGE_KEYS.rascunhoTermo);
-                    return;
-                }
-                storage.setItem(STORAGE_KEYS.rascunhoTermo, JSON.stringify(rascunho));
-            } catch (erro) {
-                console.warn('Não foi possível salvar o rascunho do termo localmente:', erro);
-            }
+            limparRascunhoTermo();
         }
         function restaurarRascunhoTermo() {
-            const storage = obterArmazenamentoLocal();
-            if (!storage || termoArmarioAtual === null) return;
-            try {
-                const bruto = storage.getItem(STORAGE_KEYS.rascunhoTermo);
-                if (!bruto) return;
-                const dados = JSON.parse(bruto);
-                const metaSalva = dados?.meta || {};
-                const armarioAtual = normalizarIdentificador(termoArmarioAtual);
-                if (metaSalva.armarioId && normalizarIdentificador(metaSalva.armarioId) !== armarioAtual) return;
-                const valores = dados?.valores || {};
-                const nascimento = valores.nascimento || '';
-                if (document.getElementById('termo-paciente')) document.getElementById('termo-paciente').value = valores.paciente || '';
-                if (document.getElementById('termo-prontuario')) document.getElementById('termo-prontuario').value = valores.prontuario || '';
-                if (elementos.termoNascimento) {
-                    elementos.termoNascimento.value = nascimento;
-                    const iso = converterDataTextoParaISO(nascimento);
-                    if (iso) {
-                        elementos.termoNascimento.dataset.isoValue = iso;
-                    } else {
-                        delete elementos.termoNascimento.dataset.isoValue;
-                    }
-                }
-                if (elementos.termoSetor) elementos.termoSetor.value = valores.setor || '';
-                if (document.getElementById('termo-leito')) document.getElementById('termo-leito').value = aplicarMascaraLeito(valores.leito || '');
-                if (document.getElementById('termo-resp-nome')) document.getElementById('termo-resp-nome').value = valores.acompanhante || '';
-                if (document.getElementById('termo-resp-telefone')) document.getElementById('termo-resp-telefone').value = valores.telefone || '';
-                if (document.getElementById('termo-resp-doc')) document.getElementById('termo-resp-doc').value = valores.documento || '';
-                if (document.getElementById('termo-resp-parentesco')) document.getElementById('termo-resp-parentesco').value = valores.parentesco || '';
-                if (valores.consciente) {
-                    const radio = document.querySelector(`input[name="termo-consciente"][value="${valores.consciente}"]`);
-                    if (radio) radio.checked = true;
-                }
-                ['ori1', 'ori2', 'ori3'].forEach(chave => {
-                    const checkbox = document.getElementById(`termo-${chave}`);
-                    if (checkbox) {
-                        checkbox.checked = Boolean(dados?.orientacoes?.includes(chave));
-                    }
-                });
-                if (Array.isArray(dados?.volumes)) {
-                    prepararVolumesTermo(dados.volumes);
-                }
-                if (dados?.assinatura) {
-                    restaurarAssinaturaTermo(dados.assinatura);
-                }
-                mostrarPassoTermo(Number.isInteger(dados?.passo) ? dados.passo : 0);
-            } catch (erro) {
-                console.warn('Falha ao restaurar rascunho do termo:', erro);
-                removerRascunhoChave(STORAGE_KEYS.rascunhoTermo);
-            }
+            limparRascunhoTermo();
         }
         function limparRascunhoTermo() {
             removerRascunhoChave(STORAGE_KEYS.rascunhoTermo);
